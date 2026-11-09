@@ -1,5 +1,10 @@
 import type { LcaBand } from "./candidates";
 
+const bands: { id: LcaBand; label: string }[] = [
+  { id: "jd_2_3y", label: "2–3 yrs" },
+  { id: "prompt_4_6y", label: "4–6 yrs" },
+];
+
 export function ExperienceTarget({
   band,
   onChange,
@@ -8,15 +13,24 @@ export function ExperienceTarget({
   onChange: (band: LcaBand) => void;
 }) {
   return (
-    <label className="field-label">
-      Experience wanted
-      <select
-        value={band}
-        onChange={(event) => onChange(event.target.value as LcaBand)}
-      >
-        <option value="jd_2_3y">2–3 years (job post)</option>
-        <option value="prompt_4_6y">4–6 years (brief)</option>
-      </select>
-    </label>
+    <div
+      className="segmented-inline"
+      role="group"
+      aria-label="Target experience"
+    >
+      <span className="segmented-label">Target experience</span>
+      <div className="segmented-track">
+        {bands.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={band === item.id}
+            onClick={() => onChange(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

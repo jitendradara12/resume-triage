@@ -9,7 +9,7 @@ export const tierLabels: Record<
 > = {
   strong_match: { label: "Strong fit", tone: "good" },
   potential_match: { label: "Possible fit", tone: "maybe" },
-  mismatch: { label: "Low match", tone: "bad" },
+  mismatch: { label: "Weak fit", tone: "bad" },
   uncertain: { label: "Unclear", tone: "neutral" },
 };
 
@@ -29,12 +29,12 @@ export const domainLabels: Record<Role, string> = {
 
 /** Score components with the weights the backend uses, so the total is explainable. */
 export const criterionLabels: Record<string, string> = {
-  software_and_data_mastery: "LCA tools & data (40%)",
-  methodology_and_standards: "Standards & methods (35%)",
-  project_depth: "Project depth (25%)",
-  ui_craft_and_systems: "UI craft & design systems (45%)",
-  product_thinking: "Product thinking (40%)",
-  ux_research_methods: "User research (15%)",
+  software_and_data_mastery: "LCA tools & data",
+  methodology_and_standards: "Standards & methods",
+  project_depth: "Project depth",
+  ui_craft_and_systems: "Design craft",
+  product_thinking: "Product thinking",
+  ux_research_methods: "User research",
 };
 
 /**
@@ -109,7 +109,7 @@ export function triageReason(candidate: EvaluatedCandidate) {
         .map((check) => check.label)
         .slice(0, 1),
   );
-  return ["Low match for both roles.", misses.length ? `${misses.join("; ")}.` : ""].filter(Boolean).join(" ");
+  return misses.length ? `${misses.join("; ")}.` : "Doesn't match either role.";
 }
 
 export function seniorityNote(
@@ -121,8 +121,8 @@ export function seniorityNote(
   if (evaluation.seniority_flag === "overqualified")
     return {
       label: role === "uiux_intern"
-        ? "Above the internship experience target"
-        : "Above the experience target",
+        ? "Overqualified for an intern"
+        : "More experience than wanted",
       tone: "maybe" as Tone,
     };
   if (
@@ -146,4 +146,13 @@ export function displayName(candidate: EvaluatedCandidate) {
   return candidate.parse_status === "ok"
     ? candidate.initials_or_alias
     : "Unreadable file";
+}
+
+/** Clean forensic placeholders out of 1-line table previews so rows stay readable. */
+export function cleanSnippet(text: string | undefined) {
+  if (!text) return "";
+  return text
+    .replace(/\s*\[[^\]]*unreadable[^\]]*\]/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }

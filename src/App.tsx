@@ -1,11 +1,10 @@
 import { useMemo, useRef, useState } from "react";
-import { Download, Search, Upload, X } from "lucide-react";
+import { CircleHelp, Download, Search, Upload, X } from "lucide-react";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { CandidateTable } from "./CandidateTable";
 import { ExperienceTarget } from "./ExperienceTarget";
 import {
   belongsToView,
-  candidateViews,
   getCandidateView,
   selectCandidates,
   type CandidateView,
@@ -15,6 +14,18 @@ import {
 import { exportCandidates } from "./exportCandidates";
 import type { EvaluatedCandidate } from "./types";
 import { useCandidates } from "./useCandidates";
+
+const primaryRoles: { id: CandidateView; label: string }[] = [
+  { id: "lca_consultant", label: "LCA Consultant" },
+  { id: "uiux_intern", label: "UI/UX Design Intern" },
+];
+
+const secondaryQueues: { id: CandidateView; label: string; warn?: boolean }[] =
+  [
+    { id: "both", label: "Cross-field" },
+    { id: "human_review", label: "Needs review", warn: true },
+    { id: "rejected", label: "Not a fit" },
+  ];
 
 export function App() {
   const {
@@ -34,43 +45,55 @@ export function App() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortField>("score");
   const [selected, setSelected] = useState<EvaluatedCandidate | null>(null);
+  const [showRules, setShowRules] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
   const visibleCandidates = useMemo(
     () =>
       selectCandidates(candidates, view, band, query, sort, hideOverqualified),
     [candidates, view, band, query, sort, hideOverqualified],
   );
 
+  const countFor = (id: CandidateView) =>
+    candidates.filter((c) => belongsToView(c, id, hideOverqualified)).length;
+
   return (
     <div className="app-layout">
       <header className="app-header">
         <div className="page-width header-content">
-          <div>
-            <h1>TalentTriage</h1>
-            <p className="muted">
-              {candidates.length} resumes · Two roles to review
-            </p>
-          </div>
-          <div className="header-actions">
+          <div className="brand-group">
+            <h1>Resume Screening</h1>
+            <span className="count-pill">{candidates.length} resumes</span>
             <button
               type="button"
-              className="button"
-              onClick={() => exportCandidates(visibleCandidates, view, band)}
-              disabled={visibleCandidates.length === 0}
+              className="ghost-button"
+              onClick={() => setShowRules((v) => !v)}
+              aria-expanded={showRules}
             >
-              <Download size={16} /> Export CSV
+              <CircleHelp size={15} />
+              Scoring rules
             </button>
+          </div>
+          <div className="header-actions">
             {hasUploads && (
               <button
                 type="button"
                 className="button"
                 disabled={isUploading}
                 onClick={clearUploads}
-                title="Remove test uploads from this browser and restore the 47 original resumes"
+                title="Remove uploaded test files and restore original 47 resumes"
               >
-                Clear uploads
+                Reset uploads
               </button>
             )}
+            <button
+              type="button"
+              className="button"
+              onClick={() => exportCandidates(visibleCandidates, view, band)}
+              disabled={visibleCandidates.length === 0}
+            >
+              <Download size={15} /> Export CSV
+            </button>
             <input
               ref={fileInput}
               type="file"
@@ -98,58 +121,55 @@ export function App() {
               disabled={isUploading}
               onClick={() => fileInput.current?.click()}
             >
-              <Upload size={16} />{" "}
-              {isUploading ? "Evaluating…" : "Upload resume"}
+              <Upload size={15} /> {isUploading ? "Scoring…" : "Upload resume"}
             </button>
           </div>
         </div>
       </header>
+
       <main className="page-width main-content">
-        <details className="methodology">
-          <summary>How candidates are ranked</summary>
-          <ul className="methodology-content">
-            <li>
-              Every resume is read, broken words from file conversion are
-              cleaned without guessing missing facts (each change is shown on the
-              Resume tab), and it gets a 0–100 score for each role.
-            </li>
-            <li>
-              <strong>LCA Consultant:</strong> LCA tools &amp; data 40%,
-              standards &amp; methods 35%, project depth 25%. Pick the
-              experience you want — scores update instantly.
-            </li>
-            <li>
-              <strong>UI/UX Intern:</strong> UI craft 45%, product thinking 40%,
-              user research 15%. No penalty for experience, but more than
-              2 years in design is marked "Above the internship experience target".
-            </li>
-            <li>
-              Evidence of role requirements can raise or lower the score.
-              LCA experience includes sustainability work; overlapping jobs
-              count once. Teaching assistantships are excluded from counted experience.
-            </li>
-            <li>
-              Unreadable or very short resumes go to "Check manually" instead
-              of being rejected. Scores guide your judgment — they don't make
-              the decision.
-            </li>
-            <li>
-              Upload a PDF, Word, or text resume to see where it ranks. Uploads
-              are processed on the server and their results are saved in this
-              browser. Re-uploading a baseline resume reuses its saved evaluation.
-            </li>
-            <li>
-              Cross-field profiles also appear in their main role list. Their
-              badges identify topics in the resume, not qualifications for a
-              second role. On combined lists, the larger score determines the
-              displayed role and score order.
-            </li>
-          </ul>
-        </details>
+        {showRules && (
+          <section className="rules-panel" aria-label="Scoring rules">
+            <div className="rules-grid">
+              <div>
+                <strong>LCA Consultant</strong>
+                <p>
+                  Scored out of 100 on LCA software (SimaPro, OpenLCA, GaBi),
+                  carbon and ISO methods, and real project work.
+                </p>
+              </div>
+              <div>
+                <strong>UI/UX Design Intern</strong>
+                <p>
+                  Scored out of 100 on design craft, product thinking and user
+                  research. Anyone with over 2 years of experience gets an
+                  “overqualified” tag, not a lower score.
+                </p>
+              </div>
+              <div>
+                <strong>Nobody is rejected by mistake</strong>
+                <p>
+                  Garbled text is fixed and highlighted in the resume view.
+                  Unreadable files go to <em>Needs review</em>, never to the
+                  reject pile.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setShowRules(false)}
+              aria-label="Close scoring rules"
+            >
+              <X size={16} />
+            </button>
+          </section>
+        )}
+
         {isUploading && (
-          <p className="notice" role="status">
-            Reading and evaluating the resume. This can take up to a minute.
-          </p>
+          <div className="notice" role="status">
+            <span>Extracting and scoring resume…</span>
+          </div>
         )}
         {notice && (
           <div className="notice" role="status">
@@ -175,82 +195,119 @@ export function App() {
             </button>
           </div>
         )}
-        <nav className="candidate-nav" aria-label="Candidate groups">
-          {candidateViews.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={view === item.id}
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-              <span>
-                {
-                  candidates.filter((candidate) =>
-                    belongsToView(candidate, item.id, hideOverqualified),
-                  ).length
-                }
+
+        <div className="workspace-card">
+          <div
+            className="nav-bar"
+            role="navigation"
+            aria-label="Candidate views"
+          >
+            <div className="primary-tabs">
+              {primaryRoles.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="role-tab"
+                  aria-pressed={view === item.id}
+                  onClick={() => setView(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <span className="tab-count">{countFor(item.id)}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="secondary-tabs">
+              {secondaryQueues.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`queue-pill ${item.warn ? "warn-pill" : ""}`}
+                  aria-pressed={view === item.id}
+                  onClick={() => setView(item.id)}
+                >
+                  {item.warn && (
+                    <span className="status-dot" aria-hidden="true" />
+                  )}
+                  <span>{item.label}</span>
+                  <span className="tab-count">{countFor(item.id)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <div className="search-field">
+                <Search size={15} aria-hidden="true" />
+                <input
+                  type="search"
+                  aria-label="Search candidates"
+                  placeholder="Search skills, education, or ID"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    className="clear-search"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {view === "lca_consultant" && (
+                <ExperienceTarget band={band} onChange={setBand} />
+              )}
+
+              {view === "uiux_intern" && (
+                <label className="filter-toggle">
+                  <input
+                    type="checkbox"
+                    checked={hideOverqualified}
+                    onChange={(event) =>
+                      setHideOverqualified(event.target.checked)
+                    }
+                  />
+                  <span>Hide overqualified</span>
+                </label>
+              )}
+            </div>
+
+            <div className="toolbar-right">
+              <span className="showing-count">
+                {visibleCandidates.length} shown
               </span>
-            </button>
-          ))}
-        </nav>
-        <div className="ranking-context">
-          <div>
-            <h2>{candidateViews.find((item) => item.id === view)?.label}</h2>
-            <p className="muted">
-              {candidateViews.find((item) => item.id === view)?.description}
-            </p>
+              <label className="sort-label">
+                <span>Sort</span>
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as SortField)}
+                >
+                  <option value="score">Match score</option>
+                  <option value="relevant_exp">Role experience</option>
+                  <option value="total_exp">Total experience</option>
+                </select>
+              </label>
+            </div>
           </div>
-          {view === "lca_consultant" && (
-            <ExperienceTarget band={band} onChange={setBand} />
-          )}
-          {view === "uiux_intern" && (
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={hideOverqualified}
-                onChange={(event) => setHideOverqualified(event.target.checked)}
-              />{" "}
-              Hide candidates with more than 2 years of design experience
-            </label>
-          )}
+
+          <CandidateTable
+            candidates={visibleCandidates}
+            view={view}
+            band={band}
+            onSelect={setSelected}
+            filtered={
+              Boolean(query.trim()) ||
+              (view === "uiux_intern" && hideOverqualified)
+            }
+          />
         </div>
-        <div className="filter-bar">
-          <div className="search-field">
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="search"
-              aria-label="Search candidates"
-              placeholder="Search candidates, skills, or education"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-          <label className="sort-label">
-            Sort by
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value as SortField)}
-            >
-              <option value="score">Score</option>
-              <option value="relevant_exp">Experience in the displayed field</option>
-              <option value="total_exp">Counted career experience</option>
-            </select>
-          </label>
-        </div>
-        <p className="result-count muted" role="status">
-          {visibleCandidates.length} candidates ·{" "}
-          {sort === "score" ? "Highest score first" : "Most experience first"} ·
-          Click a candidate to see why
-        </p>
-        <CandidateTable
-          candidates={visibleCandidates}
-          view={view}
-          band={band}
-          onSelect={setSelected}
-          filtered={Boolean(query.trim()) || (view === "uiux_intern" && hideOverqualified)}
-        />
       </main>
+
       {selected && (
         <CandidateDrawer
           key={selected.candidate_id}
