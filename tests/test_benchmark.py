@@ -2,6 +2,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -9,8 +10,8 @@ sys.path.insert(0, str(ROOT))
 
 from api.index import app
 from core.parser import apply_deterministic_repairs, compute_content_hash, parse_document_bytes
-from core.schemas import EvaluatedCandidate, WorkSpan
-from core.scoring import compute_experience_years
+from core.schemas import EvaluatedCandidate, Stage1Extraction, WorkSpan
+from core.scoring import aggregate_candidate, compute_experience_years
 
 BASELINE_PATH = ROOT / "data" / "baseline_candidates.json"
 
@@ -166,7 +167,7 @@ class TestBenchmarkSuite(unittest.TestCase):
         doc.save(buf)
 
         # Explicitly evaluate via fallback by clearing external LLM decision engine keys
-        with unittest.mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "", "TYPESAFE_API_KEY": ""}):
+        with unittest.mock.patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "", "TYPESAFE_API_KEY": ""}):
             r = self.client.post(
                 "/api/evaluate",
                 files={"file": ("john_doe_finance.docx", buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
@@ -175,9 +176,9 @@ class TestBenchmarkSuite(unittest.TestCase):
         body = r.json()
         cand = body["candidate"]
         self.assertGreaterEqual(cand["word_count"], 160)
-        # In fallback mode (avg_conf 0.50 < 0.75), must safely route to Human Review Queue, NOT auto-rejected!
         self.assertEqual(cand["primary_classification"], "neither_uncertain")
-        self.assertTrue(cand["needs_human_review"])
+        self.assertFalse(cand["needs_human_review"])
+        self.assertIn("Confident Reject", cand["classification_reason"])
         self.assertFalse(body["matched_baseline"])
 
         # Must be stored in memory and accessible via single-candidate GET endpoint
@@ -237,6 +238,89 @@ class TestBenchmarkSuite(unittest.TestCase):
         self.assertNotEqual(_parse_date_to_month_index("summary 2021"), 2021 * 12 + 3)
         self.assertIsNone(_parse_date_to_month_index("summary"))
         self.assertIsNone(_parse_date_to_month_index("unknown"))
+
+    def test_19_confident_rejection_boundaries(self):
+        source = self.candidates["anonymized_PS_1793682784387.docx"]
+        stage1 = Stage1Extraction(
+            healed_text=source.healed_text,
+            forensic_repairs=source.forensic_repairs,
+            education_summary=source.education_summary,
+            skills_and_tools=source.skills_and_tools,
+            key_projects_and_roles=source.key_projects_and_roles,
+            work_spans=source.work_spans,
+            lca_evidence_bullets=[],
+            uiux_evidence_bullets=[],
+        )
+        cases = [
+            # words, parse, LCA score, UI/UX score, LCA gate, UI/UX gate, confidence, rejected
+            (507, "ok", 1.7, 5.8, False, False, 0.51, True),
+            (507, "ok", 0.5, 9.1, False, False, 0.63, True),
+            (459, "ok", 0.4, 9.1, False, False, 0.503, True),
+            (100, "ok", 2.0, 8.7, False, False, 0.5, True),
+            (149, "ok", 24.9, 24.9, False, False, 0.5, True),
+            (150, "ok", 25.0, 8.7, False, False, 0.9, False),
+            (150, "ok", 2.0, 25.0, False, False, 0.9, False),
+            (99, "ok", 2.0, 8.7, False, False, 0.9, False),
+            (150, "ok", 2.0, 8.7, False, False, 0.1, False),
+            (150, "ok", 2.0, 8.7, True, False, 0.9, False),
+            (150, "ok", 2.0, 8.7, False, True, 0.9, False),
+            (150, "corrupted", 2.0, 8.7, False, False, 0.9, False),
+            (150, "scanned_pdf", 2.0, 8.7, False, False, 0.9, False),
+            (0, "empty_document", 0.0, 0.0, False, False, 0.9, False),
+        ]
+        for words, status, lca_score, uiux_score, lca_gate, uiux_gate, confidence, rejected in cases:
+            with self.subTest(case=(words, status, lca_score, uiux_score, lca_gate, uiux_gate, confidence)):
+                evaluations = []
+                for role, score, gate in (
+                    ("lca_consultant", lca_score, lca_gate),
+                    ("uiux_intern", uiux_score, uiux_gate),
+                ):
+                    evaluations.append(source.evaluations[role].model_copy(update={
+                        "overall_score": score,
+                        "hard_gates_passed": gate,
+                        "jev_confidence": confidence,
+                        "gate_probabilities": {
+                            "is_unrelated_domain": 0.839,
+                            "is_pure_graphic_or_unrelated": 0.574,
+                        },
+                    }))
+                with patch("core.scoring.compute_lca_match", return_value=evaluations[0]), patch(
+                    "core.scoring.compute_uiux_match", return_value=evaluations[1]
+                ):
+                    result = aggregate_candidate(
+                        candidate_id="triage_test", filename="unrelated.pdf", content_hash="test",
+                        source_url=None, parse_status=status, parse_diagnostics=None,
+                        raw_text=" ".join((source.healed_text.split() * 2)[:words]),
+                        stage1=stage1, jev_answers={},
+                    )
+                self.assertEqual(
+                    result.primary_classification == "neither_uncertain" and not result.needs_human_review,
+                    rejected,
+                )
+                if rejected:
+                    self.assertIn("Confident Reject", result.classification_reason)
+
+    def test_20_low_scores_and_failed_gates_reject_even_with_domain_adjacency(self):
+        for alias in ("BA", "KA", "PD"):
+            source = next(c for c in self.candidates.values() if c.initials_or_alias == alias)
+            with self.subTest(alias=alias):
+                stage1 = Stage1Extraction(
+                    healed_text=source.healed_text, forensic_repairs=source.forensic_repairs,
+                    education_summary=source.education_summary, skills_and_tools=source.skills_and_tools,
+                    key_projects_and_roles=source.key_projects_and_roles, work_spans=source.work_spans,
+                    lca_evidence_bullets=source.evaluations["lca_consultant"].evidence_bullets,
+                    uiux_evidence_bullets=source.evaluations["uiux_intern"].evidence_bullets,
+                )
+                with patch("core.scoring.compute_lca_match", return_value=source.evaluations["lca_consultant"]), patch(
+                    "core.scoring.compute_uiux_match", return_value=source.evaluations["uiux_intern"]
+                ):
+                    result = aggregate_candidate(
+                        candidate_id=source.candidate_id, filename=source.filename, content_hash=source.content_hash,
+                        source_url=source.source_url, parse_status="ok", parse_diagnostics=None,
+                        raw_text=source.healed_text, stage1=stage1, jev_answers={},
+                    )
+                self.assertEqual(result.primary_classification, "neither_uncertain")
+                self.assertFalse(result.needs_human_review)
 
 
 def test_all_benchmark_assertions():

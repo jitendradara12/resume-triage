@@ -60,8 +60,8 @@ $$\text{score\_variants} = \text{jev\_subscore\_composite} \times \text{multipli
 
 - **`both`:** `hard_gates_passed == True` and `overall_score >= 60` on **both** roles.
 - **Domain Crossover Badge:** Passes gates for primary role, and scores $25 \le \text{score} \le 55$ on secondary role $\rightarrow$ primary classification + `"Domain Crossover: [Role A] x [Role B]"` badge.
-- **Confident Reject:** Both role scores $< 35$, `word_count >= 150`, `jev_confidence >= 0.75` $\rightarrow$ `neither_uncertain`, `needs_human_review = False`.
-- **Human Review Queue:** `parse_status != "ok"`, `word_count < 100`, or low Jev confidence $\rightarrow$ `needs_human_review = True`.
+- **Confident Reject (calibrated):** `parse_status == "ok"`, `word_count >= 100`, both role scores $< 25$, neither role's domain gates passed, and confidence $\ge 0.25$ for each role $\rightarrow$ `neither_uncertain`, `needs_human_review = False`. Unrelated-domain probabilities do not block this rule. A separate 75% average-confidence requirement is not used.
+- **Human Review Queue:** `parse_status != "ok"`, `word_count < 100`, or unresolved nonmatches, including borderline scores or confidence $< 0.25$ for either role $\rightarrow$ `needs_human_review = True`.
 
 ---
 

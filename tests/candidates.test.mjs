@@ -34,7 +34,7 @@ test("review queues and role groups keep the 47 baseline candidates discoverable
       ({ id }) =>
         baseline.filter((candidate) => belongsToView(candidate, id)).length,
     ),
-    [21, 23, 14, 2, 1],
+    [18, 23, 14, 2, 4],
   );
 });
 

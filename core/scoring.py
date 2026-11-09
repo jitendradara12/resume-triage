@@ -511,7 +511,6 @@ def aggregate_candidate(
 
     # Handle empty / unreadable document immediately
     is_empty = parse_status != "ok" or word_count == 0 or not raw_text.strip()
-    is_ultra_sparse = word_count < 10
     if is_empty or stage1 is None or jev_answers is None:
         empty_lca = RoleMatchResult(
             role_id="lca_consultant",
@@ -567,27 +566,20 @@ def aggregate_candidate(
     lca_eval = compute_lca_match(jev_answers, relevant_by_domain["lca_consultant"], stage1.lca_evidence_bullets)
     uiux_eval = compute_uiux_match(jev_answers, relevant_by_domain["uiux_intern"], stage1.uiux_evidence_bullets)
 
-    # Classification & Triage rules per docs/spec.md
     is_sparse = word_count < 100
     low_conf = min(lca_eval.jev_confidence, uiux_eval.jev_confidence) < 0.25
-    avg_conf = (lca_eval.jev_confidence + uiux_eval.jev_confidence) / 2.0
 
     lca_unrel = lca_eval.gate_probabilities.get("is_unrelated_domain", 1.0)
     uiux_unrel = uiux_eval.gate_probabilities.get("is_pure_graphic_or_unrelated", 1.0)
     lca_s = lca_eval.overall_score
     uiux_s = uiux_eval.overall_score
-    is_confident_unrelated = (
-        not is_empty
-        and not is_ultra_sparse
-        and not low_conf
-        and avg_conf >= 0.75
-        and lca_s < 35.0
-        and uiux_s < 35.0
-        and lca_unrel >= 0.70
-        and uiux_unrel >= 0.70
+    is_confident_nonmatch = (
+        not low_conf
+        and word_count >= 100
+        and lca_s < 25.0
+        and uiux_s < 25.0
         and not lca_eval.hard_gates_passed
         and not uiux_eval.hard_gates_passed
-        and word_count >= 150
     )
 
     if is_sparse:
@@ -605,10 +597,10 @@ def aggregate_candidate(
         primary_class = "both"
         needs_human_review = False
         reason = f"Passes hard gates and scores >= 60 on both LCA ({lca_eval.overall_score}) and UI/UX ({uiux_eval.overall_score})."
-    elif is_confident_unrelated:
+    elif is_confident_nonmatch:
         primary_class = "neither_uncertain"
         needs_human_review = False
-        reason = f"Confident Reject: Both role scores < 35 (LCA {lca_eval.overall_score}, UI/UX {uiux_eval.overall_score}) with {total_years:.1f}y experience in unrelated domain."
+        reason = f"Confident Reject: Readable resume ({word_count} words), both role scores < 25 (LCA {lca_s}, UI/UX {uiux_s}), and neither role's domain gates passed."
     elif (
         lca_unrel >= 0.70
         and uiux_unrel >= 0.70

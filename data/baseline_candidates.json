@@ -1356,9 +1356,9 @@
       "uiux_intern": 0.0,
       "other": 0.0
     },
-    "primary_classification": "lca_consultant",
+    "primary_classification": "neither_uncertain",
     "needs_human_review": false,
-    "classification_reason": "Classified as LCA Consultant (12.1 vs UI/UX 0.4).",
+    "classification_reason": "Confident Reject: Readable resume (349 words), both role scores < 25 (LCA 12.1, UI/UX 0.4), and neither role's domain gates passed.",
     "forensic_repairs": [],
     "evaluations": {
       "lca_consultant": {
@@ -2730,9 +2730,9 @@
       "uiux_intern": 0.0,
       "other": 0.0
     },
-    "primary_classification": "lca_consultant",
+    "primary_classification": "neither_uncertain",
     "needs_human_review": false,
-    "classification_reason": "Classified as LCA Consultant (10.7 vs UI/UX 0.5).",
+    "classification_reason": "Confident Reject: Readable resume (295 words), both role scores < 25 (LCA 10.7, UI/UX 0.5), and neither role's domain gates passed.",
     "forensic_repairs": [],
     "evaluations": {
       "lca_consultant": {
@@ -3873,9 +3873,9 @@
       "uiux_intern": 0.0,
       "other": 0.0
     },
-    "primary_classification": "lca_consultant",
+    "primary_classification": "neither_uncertain",
     "needs_human_review": false,
-    "classification_reason": "Classified as LCA Consultant (23.4 vs UI/UX 0.8).",
+    "classification_reason": "Confident Reject: Readable resume (371 words), both role scores < 25 (LCA 23.4, UI/UX 0.8), and neither role's domain gates passed.",
     "forensic_repairs": [
       {
         "raw_fragment": "Lead a team of s",
@@ -4271,7 +4271,7 @@
     },
     "primary_classification": "neither_uncertain",
     "needs_human_review": false,
-    "classification_reason": "Confident Reject: Both role scores < 35 (LCA 0.4, UI/UX 2.7) with 3.5y experience in unrelated domain.",
+    "classification_reason": "Confident Reject: Readable resume (391 words), both role scores < 25 (LCA 0.4, UI/UX 2.7), and neither role's domain gates passed.",
     "forensic_repairs": [],
     "evaluations": {
       "lca_consultant": {

@@ -53,7 +53,7 @@ Work dates are merged by calendar month within each domain and across the full c
 
 Candidates receive an LCA, UI/UX, both, or neither/uncertain classification. Both roles must pass their requirements and score at least 60 for a candidate to match both. Other matched profiles enter the stronger role's group. Crossovers include both-role matches and profiles with evidence across domains; the crossover label does not mean that both roles passed.
 
-Unreadable files, profiles under 100 words, and unresolved low-match profiles enter human review. Confident rejections require both scores below 35, at least 150 words, average model confidence of at least 75%, strong unrelated-domain evidence, and neither role's requirements passed. Current routing thresholds live in `core/scoring.py`; `docs/spec.md` records the original hypotheses.
+Confident rejections require a readable resume with at least 100 words, both role scores below 25, and neither role's domain gates passed. A confidence below 25% for either role prevents rejection. The unrelated-domain probabilities do not block rejection when both scores and domain gates establish a nonmatch. Unreadable files, profiles under 100 words, and unresolved or borderline nonmatches enter human review. Current routing thresholds live in `core/scoring.py`; `docs/spec.md` records the original hypotheses and the calibrated rejection rule.
 
 The LCA target control changes scores and rank order instantly using saved variants. Stored classifications use the 2–3 year score and do not change with that control. The UI/UX filter hides overqualified candidates without lowering their scores.
 
