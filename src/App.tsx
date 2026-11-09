@@ -96,7 +96,8 @@ export function App() {
           <div className="methodology-content">
             <p className="muted upload-help">
               Upload a PDF, Word document, or text file to rank it with the
-              existing candidates. New uploads stay for this session.
+              existing candidates. Upload evaluations are saved in this browser
+              and stay available after refresh.
             </p>
             <p>
               Resumes are cleaned with an audit trail, then evaluated against

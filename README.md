@@ -61,13 +61,14 @@ The LCA target control changes scores and rank order instantly using saved varia
 
 Scores support human review. They measure evidence in a resume, not verified ability or portfolio quality. Model extractions and inferred text repairs can be wrong. Review the source file where evidence is unclear.
 
-When model services are unavailable, the pipeline falls back to rules and keyword evidence. Treat those evaluations as less reliable. New uploads live in browser state and temporary server memory; they disappear on refresh or a serverless cold start. The prototype has no persistent upload database or OCR for scanned PDFs.
+When model services are unavailable, the pipeline falls back to rules and keyword evidence. Treat those evaluations as less reliable. Upload evaluations, including extracted resume text, are saved in localStorage and restored after refresh without API calls. They stay in the same browser and site until its data is cleared; original files are not stored. Baseline evaluations always come from the bundled data. If browser storage is unavailable or full, uploads remain visible for the current session and the app shows a warning. The API's upload cache is temporary. The prototype has no shared upload database or OCR for scanned PDFs.
 
 ## Code layout
 
 - `src/App.tsx`: page composition and reviewer controls.
 - `src/candidates.ts`: shared grouping, search, score selection, and sorting rules.
 - `src/useCandidates.ts`: baseline state and upload requests.
+- `src/candidateStorage.ts`: browser storage for upload evaluations and baseline-safe restoration.
 - `src/CandidateTable.tsx`, `src/CandidateDrawer.tsx`: ranking list and candidate review.
 - `src/exportCandidates.ts`: CSV export of the current results.
 - `core/`: parsing, model clients, scoring, schemas, and pipeline orchestration.
@@ -82,7 +83,7 @@ npm run build
 uv run python -m unittest discover -s tests -v
 ```
 
-The frontend tests cover baseline groups, both LCA targets, search, sorting, and overqualification filtering. Backend benchmarks cover parsing failures, repairs, experience merging, classification edge cases, uploads, and baseline matching. Set the model API keys to empty strings when running backend tests to exercise the offline fallback without external requests.
+The frontend tests cover baseline groups, both LCA targets, search, sorting, overqualification filtering, and upload persistence with duplicate and storage-failure handling. Backend benchmarks cover parsing failures, repairs, experience merging, classification edge cases, uploads, and baseline matching. Set the model API keys to empty strings when running backend tests to exercise the offline fallback without external requests.
 
 To regenerate the baseline after a deliberate scoring change, restore the 47 source files under `resumes/` and run `uv run python scripts/generate_baseline.py`. This calls the configured model services and overwrites the saved evaluations. Inspect the output and rerun the benchmarks before deploying.
 

@@ -1,5 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import baselineData from "../data/baseline_candidates.json";
+import { upsertCandidate } from "./candidates";
+import { restoreCandidates, saveCandidates } from "./candidateStorage";
 import type { EvaluatedCandidate } from "./types";
 
 interface EvaluationResponse {
@@ -9,12 +11,21 @@ interface EvaluationResponse {
 
 export function useCandidates() {
   const [candidates, setCandidates] = useState<EvaluatedCandidate[]>(
-    () => baselineData as EvaluatedCandidate[],
+    () => restoreCandidates(baselineData as EvaluatedCandidate[]),
   );
   const [isUploading, setIsUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [storageWarning, setStorageWarning] = useState<string | null>(null);
   const uploadInProgress = useRef(false);
+
+  useEffect(() => {
+    setStorageWarning(
+      saveCandidates(candidates, baselineData as EvaluatedCandidate[])
+        ? null
+        : "Your uploads are visible, but this browser could not save them. They may be lost on refresh.",
+    );
+  }, [candidates]);
 
   async function upload(file: File): Promise<EvaluatedCandidate | null> {
     if (uploadInProgress.current) return null;
@@ -45,20 +56,11 @@ export function useCandidates() {
         ...data.candidate,
         matched_baseline: data.matched_baseline,
       };
-      setCandidates((previous) => {
-        const index = previous.findIndex(
-          (item) =>
-            item.content_hash === candidate.content_hash ||
-            item.candidate_id === candidate.candidate_id,
-        );
-        return index < 0
-          ? [...previous, candidate]
-          : previous.map((item, i) => (i === index ? candidate : item));
-      });
+      setCandidates((previous) => upsertCandidate(previous, candidate));
       setNotice(
         data.matched_baseline
           ? "Matched Baseline Candidate. The original evaluation has been kept."
-          : "Resume evaluated and added to the rankings for this session.",
+          : "Resume evaluated and added to the rankings.",
       );
       return candidate;
     } catch (cause) {
@@ -79,8 +81,11 @@ export function useCandidates() {
     upload,
     isUploading,
     notice,
-    error,
+    error: error ?? storageWarning,
     clearNotice: () => setNotice(null),
-    clearError: () => setError(null),
+    clearError: () => {
+      setError(null);
+      setStorageWarning(null);
+    },
   };
 }

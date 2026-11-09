@@ -18,6 +18,20 @@ export const candidateViews: { id: CandidateView; label: string }[] = [
   { id: "rejected", label: "Rejected" },
 ];
 
+export function upsertCandidate(
+  candidates: EvaluatedCandidate[],
+  candidate: EvaluatedCandidate,
+) {
+  const index = candidates.findIndex(
+    (item) =>
+      item.content_hash === candidate.content_hash ||
+      item.candidate_id === candidate.candidate_id,
+  );
+  return index < 0
+    ? [...candidates, candidate]
+    : candidates.map((item, i) => (i === index ? candidate : item));
+}
+
 export function belongsToView(
   candidate: EvaluatedCandidate,
   view: CandidateView,
