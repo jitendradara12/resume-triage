@@ -1,10 +1,16 @@
+**Assignment context**  
+**final Submission**
+
+- Link to the deployed Vercel prototype.
+- Methodology and ranking logic writeup.
+
 **Problem statement-**  
 A company posted for 2 different job profiles\-  
 1\. LifeCycle Assessment\(LCA\) role\- 4\-6 years experience\- [JD1](https://tally.so/r/9q5plp)  
 2\. UI/UX Design internship role\- [JD2](https://tally.so/r/0QovpQ)  
 [Here is a list of 47 anonymized resumes](https://workdrive.zohoexternal.in/folder/nyche10b5dccdb33743dfa46604e3aa2a2e2b) from people who applied. Some resumes belong to LCA profile, others belong to design profile.  
 To help them hire effectively, you decide to build a prototype that can help them extract relevant information from the resumes, classify each resume against the two roles, and rank those resumes for each role based on their fit to its job description.  
-Given the HR team's unfamiliarity with tech, you need to build and host a prototype on a free Vercel instance whose link you can submit in the form here.  
+Given the HR team's unfamiliarity with tech, you need to build and host a prototype on a free Vercel instance whose link you submit in the submission form.  
 Your prototype should be able to support testing by uploading a new resume\- and ranking it within the resume pile\- based on your ranking logic\.
 
 **Objectives**  

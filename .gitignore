@@ -1,2 +1,10 @@
 resumes/*.docx
 !resumes/README.md
+.env
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.vercel/
+

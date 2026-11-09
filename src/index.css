@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+:root {
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.975 0.005 200.0);
+  --surface-raised: oklch(0.952 0.009 200.0);
+  --border: oklch(0.895 0.012 200.0);
+  --ink: oklch(0.185 0.022 200.0);
+  --muted: oklch(0.440 0.025 200.0);
+  --primary: oklch(0.460 0.105 200.0);
+  --primary-soft: oklch(0.940 0.032 200.0);
+  --accent: oklch(0.480 0.135 155.0);
+  --accent-soft: oklch(0.945 0.038 155.0);
+  --warn: oklch(0.520 0.145 60.0);
+  --warn-soft: oklch(0.950 0.045 75.0);
+  --danger: oklch(0.480 0.165 25.0);
+  --danger-soft: oklch(0.945 0.038 25.0);
+
+  /* Semantic z-index scale */
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-backdrop: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Responsive Data Table per modern-web-guidance */
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(74vh, 840px);
+  container-type: inline-size;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  --label-2: "Role & Summary";
+  --label-3: "Relevant Exp";
+  --label-4: "Rubric Sub-scores";
+  --label-5: "Match Score";
+  --label-6: "Audit & Status";
+}
+
+.table-wrapper thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky);
+  background: var(--surface);
+}
+
+.table-wrapper tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--bg);
+  text-align: start;
+}
+
+.table-wrapper tbody tr:hover th,
+.table-wrapper tbody tr:hover td {
+  background: var(--surface);
+}
+
+@container (width < 680px) {
+  .table-wrapper table,
+  .table-wrapper thead,
+  .table-wrapper tbody,
+  .table-wrapper tr,
+  .table-wrapper th,
+  .table-wrapper td {
+    display: block;
+  }
+
+  .table-wrapper thead {
+    display: none;
+  }
+
+  .table-wrapper tr {
+    margin-block-end: 1rem;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .table-wrapper tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: var(--surface-raised);
+  }
+
+  .table-wrapper td:nth-child(2)::before {
+    content: var(--label-2) ": ";
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .table-wrapper td:nth-child(3)::before {
+    content: var(--label-3) ": ";
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .table-wrapper td:nth-child(4)::before {
+    content: var(--label-4) ": ";
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .table-wrapper td:nth-child(5)::before {
+    content: var(--label-5) ": ";
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .table-wrapper td:nth-child(6)::before {
+    content: var(--label-6) ": ";
+    font-weight: 600;
+    color: var(--muted);
+  }
+}
+
+/* Native Modal Drawer Dialog per modern-web-guidance */
+dialog.candidate-drawer {
+  margin: 0 0 0 auto;
+  max-block-size: 100dvh;
+  block-size: 100dvh;
+  inline-size: min(760px, 94vw);
+  border: none;
+  border-inline-start: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  padding: 0;
+  box-shadow: -12px 0 32px oklch(0.18 0.02 200 / 0.14);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+dialog.candidate-drawer::backdrop {
+  background-color: oklch(0.15 0.02 200 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.candidate-drawer {
+    transition: none;
+  }
+}

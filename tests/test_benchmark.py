@@ -1,0 +1,252 @@
+import json
+import sys
+import unittest
+from pathlib import Path
+from fastapi.testclient import TestClient
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from api.index import app
+from core.parser import apply_deterministic_repairs, compute_content_hash, parse_document_bytes
+from core.schemas import EvaluatedCandidate, WorkSpan
+from core.scoring import compute_experience_years
+
+BASELINE_PATH = ROOT / "data" / "baseline_candidates.json"
+
+
+class TestBenchmarkSuite(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        assert BASELINE_PATH.exists(), "data/baseline_candidates.json missing"
+        with open(BASELINE_PATH, "r", encoding="utf-8") as f:
+            raw_list = json.load(f)
+        cls.raw_list = raw_list
+        cls.candidates = {c["filename"]: EvaluatedCandidate.model_validate(c) for c in raw_list}
+        cls.client = TestClient(app)
+
+    def test_01_baseline_count(self):
+        self.assertEqual(len(self.raw_list), 47, f"Expected 47 candidates, got {len(self.raw_list)}")
+
+    def test_02_empty_document_benchmark(self):
+        # 1. 1793685080327.docx -> empty_document, neither_uncertain, needs_human_review=True
+        dead = self.candidates["anonymized_resume_1793685080327.docx"]
+        self.assertEqual(dead.parse_status, "empty_document")
+        self.assertEqual(dead.primary_classification, "neither_uncertain")
+        self.assertTrue(dead.needs_human_review)
+        self.assertEqual(dead.word_count, 0)
+
+    def test_03_confident_reject_axis_bank(self):
+        # 2. PS (1793682784387) -> Axis Bank Risk Manager -> Confident Reject
+        ps = self.candidates["anonymized_PS_1793682784387.docx"]
+        self.assertEqual(ps.primary_classification, "neither_uncertain")
+        self.assertFalse(ps.needs_human_review)
+        self.assertLess(ps.evaluations["lca_consultant"].overall_score, 35.0)
+        self.assertLess(ps.evaluations["uiux_intern"].overall_score, 35.0)
+
+    def test_04_overqualified_founder_bs(self):
+        # 3. BS (1793685080461) -> 3+ yr Founder / Lead Designer -> uiux_intern, score >= 85, overqualified
+        bs = self.candidates["anonymized_BS_1793685080461.docx"]
+        self.assertEqual(bs.primary_classification, "uiux_intern")
+        self.assertGreaterEqual(bs.evaluations["uiux_intern"].overall_score, 85.0)
+        self.assertEqual(bs.evaluations["uiux_intern"].seniority_flag, "overqualified")
+
+    def test_05_ta_underqualified_pkg(self):
+        # 4. PKG (1793682784369) -> IIT Dhanbad TA -> lca_consultant, underqualified
+        pkg = self.candidates["anonymized_PKG_1793682784369.docx"]
+        self.assertEqual(pkg.primary_classification, "lca_consultant")
+        self.assertEqual(pkg.evaluations["lca_consultant"].seniority_flag, "underqualified")
+
+    def test_06_crossover_badge_aps(self):
+        # 5. APS (1793685080222) -> UI/UX Designer + Sustainability SaaS project -> crossover badge
+        aps = self.candidates["anonymized_APS_1793685080222.docx"]
+        self.assertEqual(aps.primary_classification, "uiux_intern")
+        self.assertIn("Domain Crossover: Sustainability × Design", aps.crossover_badges)
+        self.assertEqual(aps.evaluations["uiux_intern"].seniority_flag, "overqualified")
+
+    def test_07_crossover_badge_rr(self):
+        # 6. RR (1793682784428) -> LCA Consultant building PCF software app -> crossover badge
+        rr = self.candidates["anonymized_RR_1793682784428.docx"]
+        self.assertEqual(rr.primary_classification, "lca_consultant")
+        self.assertIn("Domain Crossover: LCA × Software Engineering", rr.crossover_badges)
+        self.assertEqual(rr.evaluations["lca_consultant"].seniority_flag, "underqualified")
+
+    def test_08_sparse_profile_kn(self):
+        # 7. KN (1793685080310) -> 84-word sparse profile -> neither_uncertain, needs_human_review=True
+        kn = self.candidates["anonymized_KN_1793685080310.docx"]
+        self.assertEqual(kn.primary_classification, "neither_uncertain")
+        self.assertTrue(kn.needs_human_review)
+        self.assertEqual(kn.word_count, 84)
+
+    def test_09_forensic_repairs_audit(self):
+        # 8. Forensic repairs on HM, SS, HD
+        for fname in (
+            "anonymized_HM_1793682784257.docx",
+            "anonymized_SS_1793682784470.docx",
+            "anonymized_HD_1793682784275.docx",
+        ):
+            self.assertGreaterEqual(len(self.candidates[fname].forensic_repairs), 1, f"Missing repairs on {fname}")
+
+    def test_10_api_health_and_candidate_lookup(self):
+        r_health = self.client.get("/api/health")
+        self.assertEqual(r_health.status_code, 200)
+        self.assertEqual(r_health.json()["baseline_count"], 47)
+
+        r_candidates = self.client.get("/api/candidates")
+        self.assertEqual(r_candidates.status_code, 200)
+        self.assertEqual(len(r_candidates.json()), 47)
+
+        ps_cand = self.candidates["anonymized_PS_1793682784387.docx"]
+        r_single = self.client.get(f"/api/candidates/{ps_cand.candidate_id}")
+        self.assertEqual(r_single.status_code, 200)
+        self.assertEqual(r_single.json()["initials_or_alias"], "PS")
+
+    def test_11_api_baseline_deduplication_trap(self):
+        with open(ROOT / "resumes" / "anonymized_HM_1793682784257.docx", "rb") as f:
+            r_eval = self.client.post(
+                "/api/evaluate",
+                files={"file": ("reupload_HM.docx", f.read(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            )
+        self.assertEqual(r_eval.status_code, 200)
+        body = r_eval.json()
+        self.assertTrue(body["matched_baseline"])
+        self.assertIn("Matched Baseline Candidate", body["notice"])
+        self.assertEqual(body["candidate"]["initials_or_alias"], "HM")
+
+    def test_12_empty_upload_parsing(self):
+        # 0-byte file upload returns empty_document and neither_uncertain
+        text, status, diag = parse_document_bytes(b"", "empty_test.docx")
+        self.assertEqual(status, "empty_document")
+        self.assertEqual(text, "")
+
+        r_empty = self.client.post(
+            "/api/evaluate",
+            files={"file": ("brand_new_empty.docx", b"", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        self.assertEqual(r_empty.status_code, 200)
+        empty_body = r_empty.json()
+        self.assertEqual(empty_body["candidate"]["parse_status"], "empty_document")
+        self.assertTrue(empty_body["candidate"]["needs_human_review"])
+        self.assertEqual(empty_body["candidate"]["primary_classification"], "neither_uncertain")
+
+    def test_13_overlapping_interval_math(self):
+        # Two 1-year roles overlapping by 6 months -> union must be 1.5 years (18 months), not 2.0 years
+        spans = [
+            WorkSpan(title="LCA Analyst", organization="Company A", start_date="2022-01", end_date="2023-01", months_duration=12, domain="lca_sustainability", is_internship=False),
+            WorkSpan(title="LCA Consultant", organization="Company B", start_date="2022-06", end_date="2023-06", months_duration=12, domain="lca_sustainability", is_internship=False),
+            WorkSpan(title="Teaching Assistant", organization="University", start_date="2023-06", end_date="2024-06", months_duration=12, domain="lca_sustainability", is_internship=True),
+        ]
+        total, by_dom = compute_experience_years(spans)
+        self.assertEqual(total, 1.5)
+        self.assertEqual(by_dom["lca_consultant"], 1.5)
+
+    def test_14_deterministic_repairs_logic(self):
+        raw = "We measured Scope s emissions according to ISO / s."
+        healed, repairs = apply_deterministic_repairs(raw)
+        self.assertIn("Scope 1, 2, 3 emissions", healed)
+        self.assertIn("ISO 14040/14044 standards", healed)
+        self.assertEqual(len(repairs), 2)
+
+    def test_15_live_upload_fallback_classification_and_memory_lookup(self):
+        from core.scoring import _parse_date_to_month_index
+        self.assertIsNone(_parse_date_to_month_index("unknown"))
+
+        import docx, io, os, unittest.mock
+        doc = docx.Document()
+        doc.add_heading("Senior Financial Risk Analyst - Portfolio Governance", 0)
+        doc.add_paragraph("Seasoned banking analytics manager with extensive background overseeing delinquency forecasting, equity portfolios, and debt securitization across enterprise commercial lending divisions.")
+        doc.add_paragraph("Delivered multi-currency econometric regression models, liquidity coverage ratio assessments, macroeconomic scenario simulations, and Basel III capital adequacy audits across tier-one credit institutions.")
+        doc.add_paragraph("Experience: Senior Risk Analyst at Global Bank Corp from 2019 to 2024. Monitored risk-weighted assets exceeding 50 billion dollars, audited underwriting exceptions, and automated executive management reporting dashboards.")
+        doc.add_paragraph("Led internal audit committees, prepared quarterly regulatory filings for federal financial oversight agencies, and executed comprehensive asset-liability duration matching across multiple investment funds.")
+        doc.add_paragraph("Skills and Platforms: Proficient in Bloomberg Terminal, Capital IQ, Advanced Financial Modeling, SQL database queries, quantitative portfolio stress-testing, and corporate compliance governance.")
+        doc.add_paragraph("Education: Master of Science in Finance and Quantitative Economics, Premier Business School, 2018.")
+        doc.add_paragraph("Certifications: Chartered Financial Analyst (CFA Level III candidate), Financial Risk Manager (FRM certified), and licensed investment advisor.")
+        doc.add_paragraph("Key Deliverables: Implemented real-time counterparty credit exposure alerts and structured hedge fund derivative settlements, preserving institutional capital during extreme macroeconomic market volatility periods.")
+        buf = io.BytesIO()
+        doc.save(buf)
+
+        # Explicitly evaluate via fallback by clearing external LLM decision engine keys
+        with unittest.mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "", "TYPESAFE_API_KEY": ""}):
+            r = self.client.post(
+                "/api/evaluate",
+                files={"file": ("john_doe_finance.docx", buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        cand = body["candidate"]
+        self.assertGreaterEqual(cand["word_count"], 160)
+        # In fallback mode (avg_conf 0.50 < 0.75), must safely route to Human Review Queue, NOT auto-rejected!
+        self.assertEqual(cand["primary_classification"], "neither_uncertain")
+        self.assertTrue(cand["needs_human_review"])
+        self.assertFalse(body["matched_baseline"])
+
+        # Must be stored in memory and accessible via single-candidate GET endpoint
+        r_get = self.client.get(f"/api/candidates/{cand['candidate_id']}")
+        self.assertEqual(r_get.status_code, 200)
+        self.assertEqual(r_get.json()["candidate_id"], cand["candidate_id"])
+
+    def test_16_live_upload_lca_candidate_fallback(self):
+        import docx, io
+        doc = docx.Document()
+        doc.add_heading("Dr. Jane Green - Life Cycle Assessment", 0)
+        doc.add_paragraph("LCA Practitioner with extensive expertise in SimaPro, openLCA, GaBi, Ecoinvent, and ISO 14040/14044 standards.")
+        doc.add_paragraph("Delivered cradle-to-gate Environmental Product Declarations (EPDs) and GHG Protocol Scope 1, 2, 3 carbon accounting across manufacturing and packaging supply chains.")
+        doc.add_paragraph("Experience: Senior LCA Specialist at EcoConsult from 2021 to 2024. Modeled 25 product systems following strict ISO 14040/44 standards and published verified EPDs.")
+        doc.add_paragraph("Skills and Methodologies: Proficient with SimaPro, openLCA, GaBi, Ecoinvent v3.9, EN 15804+A2, and corporate decarbonization roadmaps.")
+        doc.add_paragraph("Education: Master of Science in Environmental Engineering, State University, 2020.")
+        doc.add_paragraph("Key Projects: Led supply-chain carbon footprint analysis for automotive components, reducing life cycle impacts by 18%.")
+        buf = io.BytesIO()
+        doc.save(buf)
+
+        r = self.client.post(
+            "/api/evaluate",
+            files={"file": ("jane_green_lca.docx", buf.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        self.assertEqual(r.status_code, 200)
+        cand = r.json()["candidate"]
+        self.assertEqual(cand["primary_classification"], "lca_consultant")
+        self.assertGreater(cand["evaluations"]["lca_consultant"]["overall_score"], 40.0)
+        self.assertEqual(cand["evaluations"]["lca_consultant"]["seniority_flag"], "target_band")
+        self.assertGreaterEqual(cand["relevant_years_by_domain"].get("lca_consultant", 0.0), 2.0)
+
+    def test_17_encrypted_pdf_handling(self):
+        import io
+        from pypdf import PdfWriter
+        writer = PdfWriter()
+        writer.add_blank_page(width=100, height=100)
+        writer.encrypt("secure_secret")
+        buf = io.BytesIO()
+        writer.write(buf)
+
+        text, status, diag = parse_document_bytes(buf.getvalue(), "locked.pdf")
+        self.assertEqual(status, "corrupted")
+        self.assertIn("encrypted", diag.lower())
+
+    def test_18_date_format_variations(self):
+        from core.scoring import _parse_date_to_month_index
+        # ISO YYYY-MM-DD
+        idx_iso = _parse_date_to_month_index("2022-03-15")
+        self.assertEqual(idx_iso, 2022 * 12 + 3)
+        # MM/YYYY
+        idx_rev = _parse_date_to_month_index("05/2021")
+        self.assertEqual(idx_rev, 2021 * 12 + 5)
+        # Ongoing synonyms
+        idx_now = _parse_date_to_month_index("till now")
+        self.assertIsNotNone(idx_now)
+        # Verify word boundary protects substrings like summary/unknown
+        self.assertNotEqual(_parse_date_to_month_index("summary 2021"), 2021 * 12 + 3)
+        self.assertIsNone(_parse_date_to_month_index("summary"))
+        self.assertIsNone(_parse_date_to_month_index("unknown"))
+
+
+def test_all_benchmark_assertions():
+    """Backward compatibility entry point for pytest."""
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestBenchmarkSuite)
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    assert result.wasSuccessful(), f"Tests failed: {len(result.errors)} errors, {len(result.failures)} failures"
+
+
+if __name__ == "__main__":
+    unittest.main()
+
