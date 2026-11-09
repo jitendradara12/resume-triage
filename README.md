@@ -61,7 +61,9 @@ The LCA target control changes scores and rank order instantly using saved varia
 
 Scores support human review. They measure evidence in a resume, not verified ability or portfolio quality. Model extractions and inferred text repairs can be wrong. Review the source file where evidence is unclear.
 
-When model services are unavailable, the pipeline falls back to rules and keyword evidence. Treat those evaluations as less reliable. Upload evaluations, including extracted resume text, are saved in localStorage and restored after refresh without API calls. They stay in the same browser and site until its data is cleared; original files are not stored. Baseline evaluations always come from the bundled data. If browser storage is unavailable or full, uploads remain visible for the current session and the app shows a warning. The API's upload cache is temporary. The prototype has no shared upload database or OCR for scanned PDFs.
+When model services are unavailable, the pipeline falls back to rules and keyword evidence. Treat those evaluations as less reliable. Upload evaluations, including extracted resume text, are saved in localStorage and restored after refresh without API calls. They stay in the same browser and site until its data is cleared; original files are not stored. **Clear uploads** removes saved test uploads and restores the 47 bundled resumes. Baseline evaluations always come from the bundled data. If browser storage is unavailable or full, uploads remain visible for the current session and the app shows a warning. The API's upload cache is temporary. The prototype has no shared upload database or OCR for scanned PDFs.
+
+Experience totals reflect extracted work-history domains. For low-scoring roles with failed domain gates, the UI labels these as LCA/sustainability or UI/UX design years rather than implying a qualified role match. ESG or compliance tenure is preserved; it does not establish hands-on LCA modeling. The experience target can be changed above the LCA table or inside the candidate drawer.
 
 ## Code layout
 

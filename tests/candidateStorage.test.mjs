@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { restoreCandidates, saveCandidates, UPLOAD_STORAGE_KEY } from "../src/candidateStorage.ts";
+import { clearStoredUploads, restoreCandidates, saveCandidates, UPLOAD_STORAGE_KEY } from "../src/candidateStorage.ts";
 import { getCandidateView, upsertCandidate } from "../src/candidates.ts";
 
 const baseline = JSON.parse(readFileSync(
@@ -13,6 +13,7 @@ function memoryStorage() {
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
   };
 }
 
@@ -36,6 +37,18 @@ test("uploads, resume text, and evaluations survive refresh without duplicating 
   assert.deepEqual(restored, candidates);
   assert.equal(getCandidateView(restored.at(-1)), "rejected");
   assert.deepEqual(restoreCandidates(baseline, storage), restored);
+});
+
+test("clearing uploads restores the baseline after refresh and preserves other browser data", () => {
+  const storage = memoryStorage();
+  storage.setItem("unrelated", "keep");
+  saveCandidates([...baseline, upload("jd"), upload("luke")], baseline, storage);
+  assert.equal(clearStoredUploads(storage), true);
+  assert.deepEqual(restoreCandidates(baseline, storage), baseline);
+  assert.equal(storage.getItem("unrelated"), "keep");
+  assert.equal(clearStoredUploads({
+    removeItem() { throw new Error("Storage blocked"); },
+  }), false);
 });
 
 test("re-uploading the same content replaces its saved evaluation", () => {

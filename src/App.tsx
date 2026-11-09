@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Download, Search, Upload, X } from "lucide-react";
 import { CandidateDrawer } from "./CandidateDrawer";
 import { CandidateTable } from "./CandidateTable";
+import { ExperienceTarget } from "./ExperienceTarget";
 import {
   belongsToView,
   candidateViews,
@@ -18,6 +19,8 @@ import { useCandidates } from "./useCandidates";
 export function App() {
   const {
     candidates,
+    hasUploads,
+    clearUploads,
     upload,
     isUploading,
     notice,
@@ -57,6 +60,17 @@ export function App() {
             >
               <Download size={16} /> Export CSV
             </button>
+            {hasUploads && (
+              <button
+                type="button"
+                className="button"
+                disabled={isUploading}
+                onClick={clearUploads}
+                title="Remove test uploads from this browser and restore the 47 original resumes"
+              >
+                Clear uploads
+              </button>
+            )}
             <input
               ref={fileInput}
               type="file"
@@ -198,16 +212,7 @@ export function App() {
             </p>
           </div>
           {view === "lca_consultant" && (
-            <label className="field-label">
-              Experience target
-              <select
-                value={band}
-                onChange={(event) => setBand(event.target.value as LcaBand)}
-              >
-                <option value="jd_2_3y">2–3 years · JD</option>
-                <option value="prompt_4_6y">4–6 years · Assignment</option>
-              </select>
-            </label>
+            <ExperienceTarget band={band} onChange={setBand} />
           )}
           {view === "uiux_intern" && (
             <label className="checkbox-label">
@@ -260,6 +265,7 @@ export function App() {
           key={selected.candidate_id}
           candidate={selected}
           band={band}
+          onBandChange={setBand}
           onClose={() => setSelected(null)}
         />
       )}

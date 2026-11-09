@@ -68,6 +68,15 @@ export function getRoleScore(
     : evaluation.overall_score;
 }
 
+export function experienceSummary(candidate: EvaluatedCandidate, role: Role) {
+  const evaluation = candidate.evaluations[role];
+  const label =
+    !evaluation.hard_gates_passed && evaluation.overall_score < 25
+      ? role === "lca_consultant" ? "LCA / sustainability" : "UI/UX design"
+      : "relevant";
+  return `${(candidate.relevant_years_by_domain[role] ?? 0).toFixed(1)} yrs ${label}`;
+}
+
 export function displayedRole(
   candidate: EvaluatedCandidate,
   view: CandidateView,

@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { ExternalLink, X } from "lucide-react";
+import { ExperienceTarget } from "./ExperienceTarget";
 import {
+  experienceSummary,
   getRoleScore,
   roleLabels,
   type LcaBand,
@@ -90,7 +92,8 @@ function RoleEvaluation({
         <div>
           <h3>{roleLabels[role]}</h3>
           <p className="muted">
-            {years.toFixed(1)} yrs relevant · {seniority}
+            {experienceSummary(candidate, role)}
+            {evaluation.hard_gates_passed && ` · ${seniority}`}
           </p>
         </div>
         <div className="role-score">
@@ -169,10 +172,12 @@ function RoleEvaluation({
 export function CandidateDrawer({
   candidate,
   band,
+  onBandChange,
   onClose,
 }: {
   candidate: EvaluatedCandidate;
   band: LcaBand;
+  onBandChange: (band: LcaBand) => void;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -283,6 +288,7 @@ export function CandidateDrawer({
                   </p>
                 ))}
               </section>
+              <ExperienceTarget band={band} onChange={onBandChange} />
               <div className="role-comparison">
                 {(["lca_consultant", "uiux_intern"] as const).map((role) => (
                   <RoleEvaluation
@@ -354,7 +360,9 @@ export function CandidateDrawer({
                   </div>
                   {(["lca_consultant", "uiux_intern"] as const).map((role) => (
                     <div key={role}>
-                      <dt>{roleLabels[role]}</dt>
+                      <dt>
+                        {role === "lca_consultant" ? "LCA / sustainability" : "UI/UX design"}
+                      </dt>
                       <dd>
                         {(
                           candidate.relevant_years_by_domain[role] ?? 0
@@ -364,6 +372,11 @@ export function CandidateDrawer({
                     </div>
                   ))}
                 </dl>
+                <p className="muted">
+                  Domain years come from the work history. Sustainability work
+                  can include ESG or compliance without hands-on LCA modeling.
+                  Role requirements are assessed separately.
+                </p>
               </section>
               <section>
                 <h3>Work history</h3>

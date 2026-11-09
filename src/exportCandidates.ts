@@ -21,8 +21,8 @@ export function exportCandidates(
       "LCA score (2-3 years)",
       "LCA score (4-6 years)",
       "UI/UX score",
-      "Relevant LCA years",
-      "Relevant UI/UX years",
+      "LCA / sustainability years (extracted)",
+      "UI/UX design years (extracted)",
       "Total career years",
       "Text repairs",
       "Rationale",
@@ -40,7 +40,7 @@ export function exportCandidates(
       candidate.relevant_years_by_domain.uiux_intern ?? 0,
       candidate.total_career_years,
       candidate.forensic_repairs.length,
-      candidate.needs_human_review
+      candidate.needs_human_review || candidate.primary_classification === "neither_uncertain"
         ? candidate.classification_reason
         : candidate.evaluations[displayedRole(candidate, view, band)]
             .rationale_headline,

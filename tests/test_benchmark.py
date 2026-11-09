@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 from api.index import app
 from core.parser import apply_deterministic_repairs, compute_content_hash, parse_document_bytes
 from core.schemas import EvaluatedCandidate, Stage1Extraction, WorkSpan
-from core.scoring import aggregate_candidate, compute_experience_years
+from core.scoring import aggregate_candidate, compute_experience_years, compute_lca_match
 
 BASELINE_PATH = ROOT / "data" / "baseline_candidates.json"
 
@@ -321,6 +321,25 @@ class TestBenchmarkSuite(unittest.TestCase):
                     )
                 self.assertEqual(result.primary_classification, "neither_uncertain")
                 self.assertFalse(result.needs_human_review)
+
+
+    def test_21_lca_headlines_use_candidate_subscores(self):
+        for candidate in self.candidates.values():
+            saved = candidate.evaluations["lca_consultant"]
+            if saved.match_tier != "strong_match":
+                continue
+            with self.subTest(alias=candidate.initials_or_alias):
+                answers = {
+                    key: {"noul": value} for key, value in saved.gate_probabilities.items()
+                }
+                answers.update({
+                    key: {"score": value * 3 / 100} for key, value in saved.sub_scores.items()
+                })
+                result = compute_lca_match(
+                    answers, candidate.relevant_years_by_domain["lca_consultant"], saved.evidence_bullets,
+                )
+                self.assertEqual(result.rationale_headline, saved.rationale_headline)
+                self.assertNotIn("SimaPro/GaBi/openLCA", result.rationale_headline)
 
 
 def test_all_benchmark_assertions():

@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import baselineData from "../data/baseline_candidates.json";
 import { upsertCandidate } from "./candidates";
-import { restoreCandidates, saveCandidates } from "./candidateStorage";
+import {
+  clearStoredUploads,
+  restoreCandidates,
+  saveCandidates,
+} from "./candidateStorage";
 import type { EvaluatedCandidate } from "./types";
 
 interface EvaluationResponse {
@@ -76,8 +80,24 @@ export function useCandidates() {
     }
   }
 
+  function clearUploads() {
+    if (uploadInProgress.current) return;
+    if (!clearStoredUploads()) {
+      setError(
+        "Could not clear saved uploads. Check this site's browser storage permissions and try again.",
+      );
+      return;
+    }
+    setCandidates(baselineData as EvaluatedCandidate[]);
+    setError(null);
+    setStorageWarning(null);
+    setNotice("Test uploads cleared. Showing the 47 original resumes.");
+  }
+
   return {
     candidates,
+    hasUploads: candidates.length > baselineData.length,
+    clearUploads,
     upload,
     isUploading,
     notice,

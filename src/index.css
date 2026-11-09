@@ -130,6 +130,9 @@ p {
   align-items: center;
   gap: 8px;
 }
+.header-actions {
+  flex-wrap: wrap;
+}
 .button {
   min-height: 40px;
   padding: 8px 14px;
@@ -220,8 +223,8 @@ p {
 }
 .ranking-context {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 20px;
   padding-block: 28px 24px;
 }
@@ -521,6 +524,10 @@ dialog.candidate-drawer::backdrop {
 }
 .drawer-body > section + section {
   margin-top: 24px;
+}
+.drawer-body > .field-label {
+  margin-block: 20px;
+  flex-wrap: wrap;
 }
 .profile-summary {
   padding: 16px;

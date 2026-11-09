@@ -333,8 +333,7 @@ def compute_lca_match(
 
     # Synthesize deterministic rationale headline
     if tier == "strong_match":
-        sw_tag = "dedicated LCA modeling (SimaPro/GaBi/openLCA)" if has_sw >= 0.6 else "strong GHG/ISO methodology"
-        headline = f"Strong LCA/Sustainability fit ({y:.1f}y relevant exp) anchored by {sw_tag} and {s_std:.0f}/100 standards execution."
+        headline = f"Strong LCA/Sustainability fit ({s_sw:.0f}/100 software and data, {s_std:.0f}/100 methods and standards, {s_proj:.0f}/100 project depth)."
     elif tier == "potential_match":
         if y < 1.5 and has_sw >= 0.6:
             headline = f"Hands-on LCA tool proficiency ({s_sw:.0f}/100) with early-career tenure ({y:.1f}y relevant exp)."

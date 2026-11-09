@@ -1,5 +1,6 @@
 import {
   displayedRole,
+  experienceSummary,
   getRoleScore,
   roleLabels,
   type CandidateView,
@@ -16,6 +17,8 @@ interface Props {
 
 export function CandidateTable({ candidates, view, band, onSelect }: Props) {
   const mixedRoles = view !== "lca_consultant" && view !== "uiux_intern";
+  const triageView = view === "rejected" || view === "human_review";
+  const summaryLabel = triageView ? "Triage reason" : "Why they match";
   return (
     <div
       className="table-wrapper"
@@ -31,7 +34,7 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
         <thead>
           <tr>
             <th scope="col">Candidate</th>
-            <th scope="col">Why they match</th>
+            <th scope="col">{summaryLabel}</th>
             <th scope="col">Experience</th>
             <th scope="col">Score / 100</th>
           </tr>
@@ -82,12 +85,12 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
                       </div>
                     </div>
                   </th>
-                  <td className="candidate-summary" data-label="Why they match">
-                    {mixedRoles && (
+                  <td className="candidate-summary" data-label={summaryLabel}>
+                    {mixedRoles && !triageView && (
                       <span className="role-label">{roleLabels[role]}</span>
                     )}
                     <p>
-                      {candidate.needs_human_review
+                      {triageView
                         ? candidate.classification_reason
                         : evaluation.rationale_headline}
                     </p>
@@ -99,9 +102,9 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
                     <div className="candidate-flags">
                       {candidate.needs_human_review ? (
                         <span className="badge warning">Needs review</span>
-                      ) : evaluation.seniority_flag === "overqualified" ? (
+                      ) : !triageView && evaluation.seniority_flag === "overqualified" ? (
                         <span className="badge warning">Overqualified</span>
-                      ) : belowTarget ? (
+                      ) : !triageView && belowTarget ? (
                         <span className="badge">Below experience target</span>
                       ) : null}
                       {candidate.forensic_repairs.length > 0 && (
@@ -113,7 +116,7 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
                     </div>
                   </td>
                   <td data-label="Experience" className="experience-cell">
-                    <strong>{years.toFixed(1)} yrs relevant</strong>
+                    <strong>{experienceSummary(candidate, role)}</strong>
                     <span className="muted">
                       {candidate.total_career_years.toFixed(1)} yrs total
                     </span>

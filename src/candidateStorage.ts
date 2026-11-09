@@ -3,6 +3,15 @@ import type { EvaluatedCandidate } from "./types";
 
 export const UPLOAD_STORAGE_KEY = "talent-triage.uploads.v1";
 
+export function clearStoredUploads(storage?: Pick<Storage, "removeItem">): boolean {
+  try {
+    (storage ?? localStorage).removeItem(UPLOAD_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function matchesBaseline(
   candidate: EvaluatedCandidate,
   baseline: EvaluatedCandidate[],
