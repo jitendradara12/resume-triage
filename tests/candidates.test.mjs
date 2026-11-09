@@ -43,11 +43,10 @@ test("low-fit domain years are labelled without erasing extracted experience", (
   const ba = baseline.find((candidate) => candidate.initials_or_alias === "BA");
   const years = ba.relevant_years_by_domain.lca_consultant;
   assert.ok(years > 2);
-  assert.equal(experienceSummary(ba, "lca_consultant"), `${years.toFixed(1)} yrs LCA / sustainability`);
+  assert.equal(experienceSummary(ba, "lca_consultant"), `${years.toFixed(1)} yrs in sustainability / LCA`);
   assert.equal(ba.relevant_years_by_domain.lca_consultant, years);
   const hm = baseline.find((candidate) => candidate.initials_or_alias === "HM");
-  assert.match(experienceSummary(hm, "lca_consultant"), /yrs relevant$/);
-  assert.equal(experienceSummary(hm, "uiux_intern"), "0.0 yrs UI/UX design");
+  assert.equal(experienceSummary(hm, "uiux_intern"), "0.0 yrs in UI/UX design");
 });
 
 test("both experience targets sort by the same score and role shown to the reviewer", () => {

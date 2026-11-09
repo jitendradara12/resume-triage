@@ -234,10 +234,24 @@ async def evaluate_decisions(
       - for noul: {"type": "noul", "noul": float}
       - for score: {"type": "score", "score": float, "confidence": float, "probabilities": dict}
     """
-    provider = os.environ.get("DECISION_PROVIDER", "openrouter").lower()
-    model = os.environ.get("DECISION_MODEL", "parallel/decisions-fast:free")
-    url = os.environ.get("DECISION_API_URL", "https://openrouter.ai/api/alpha/decisions")
-    api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("TYPESAFE_API_KEY") or ""
+    typesafe_key = os.environ.get("TYPESAFE_API_KEY", "").strip()
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+
+    default_provider = "typesafe" if (typesafe_key or not openrouter_key) else "openrouter"
+    provider = os.environ.get("DECISION_PROVIDER", default_provider).lower()
+
+    if provider in ("typesafe", "jev", "typesafe_rest"):
+        model = os.environ.get("DECISION_MODEL", "jev-latest")
+        url = os.environ.get("DECISION_API_URL", "https://api.typesafe.ai/v1/systemone")
+        api_key = typesafe_key or openrouter_key
+    elif provider == "openrouter":
+        model = os.environ.get("DECISION_MODEL", "parallel/decisions-fast:free")
+        url = os.environ.get("DECISION_API_URL", "https://openrouter.ai/api/alpha/decisions")
+        api_key = openrouter_key or typesafe_key
+    else:
+        model = os.environ.get("DECISION_MODEL", "jev-latest")
+        url = os.environ.get("DECISION_API_URL", "https://api.typesafe.ai/v1/systemone")
+        api_key = typesafe_key or openrouter_key
 
     if not api_key:
         return {}

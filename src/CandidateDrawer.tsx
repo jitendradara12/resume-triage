@@ -1,29 +1,24 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { ExternalLink, X } from "lucide-react";
-import { ExperienceTarget } from "./ExperienceTarget";
+import { Check, ExternalLink, X } from "lucide-react";
 import {
   experienceSummary,
   getRoleScore,
+  minimumYears,
   roleLabels,
   type LcaBand,
   type Role,
 } from "./candidates";
+import {
+  criterionLabels,
+  crossoverLabel,
+  displayName,
+  formatMonth,
+  requirementChecks,
+  seniorityNote,
+  tierLabels,
+  triageReason,
+} from "./presentation";
 import type { EvaluatedCandidate, ForensicRepair } from "./types";
-
-const criterionLabels: Record<string, string> = {
-  software_and_data_mastery: "Software and data",
-  methodology_and_standards: "Methods and standards",
-  project_depth: "Project depth",
-  ui_craft_and_systems: "UI craft and systems",
-  ux_research_methods: "UX research",
-  product_thinking: "Product thinking",
-  has_lca_software: "Hands-on LCA software",
-  has_ghg_standards: "GHG and ISO knowledge",
-  is_unrelated_domain: "Unrelated background",
-  has_figma_wireframing: "Figma and wireframing",
-  has_portfolio_projects: "Portfolio projects",
-  is_pure_graphic_or_unrelated: "Graphic design only or unrelated",
-};
 
 function ResumeText({
   text,
@@ -32,12 +27,7 @@ function ResumeText({
   text: string;
   repairs: ForensicRepair[];
 }) {
-  if (!text)
-    return (
-      <p className="muted">
-        No readable text could be extracted. Please inspect the source resume.
-      </p>
-    );
+  if (!text) return null;
   const values = [
     ...new Set(repairs.map((repair) => repair.repaired_value).filter(Boolean)),
   ];
@@ -69,101 +59,74 @@ function RoleEvaluation({
   candidate,
   role,
   band,
+  compact,
 }: {
   candidate: EvaluatedCandidate;
   role: Role;
   band: LcaBand;
+  compact: boolean;
 }) {
   const evaluation = candidate.evaluations[role];
-  const years = candidate.relevant_years_by_domain[role] ?? 0;
-  const belowTarget =
-    role === "lca_consultant" && years < (band === "jd_2_3y" ? 2 : 4);
-  const seniority =
-    evaluation.seniority_flag === "overqualified"
-      ? "Overqualified"
-      : belowTarget
-        ? "Below target"
-        : role === "lca_consultant"
-          ? "Meets minimum"
-          : "Intern range";
+  const tier = tierLabels[evaluation.match_tier];
+  const seniority = seniorityNote(candidate, role, minimumYears[band]);
   return (
-    <section className="role-evaluation">
+    <section className={`role-evaluation ${compact ? "compact" : ""}`}>
       <div className="role-heading">
         <div>
           <h3>{roleLabels[role]}</h3>
-          <p className="muted">
-            {experienceSummary(candidate, role)}
-            {evaluation.hard_gates_passed && ` · ${seniority}`}
-          </p>
+          <p className="muted">{experienceSummary(candidate, role)}</p>
+          {seniority && (
+            <span className="badge warning">{seniority.label}</span>
+          )}
         </div>
         <div className="role-score">
-          <strong className="score">
-            {getRoleScore(candidate, role, band).toFixed(1)}
+          <strong className={`score ${tier.tone}`}>
+            {Math.round(getRoleScore(candidate, role, band))}
           </strong>
-          <span className="match-tier">
-            {evaluation.match_tier.replaceAll("_", " ")}
-          </span>
+          <span className={`pill ${tier.tone}`}>{tier.label}</span>
         </div>
       </div>
-      {role === "lca_consultant" && (
-        <div className="score-variants">
-          <span>
-            2–3 yrs:{" "}
-            <strong>
-              {getRoleScore(candidate, role, "jd_2_3y").toFixed(1)}
-            </strong>
-          </span>
-          <span>
-            4–6 yrs:{" "}
-            <strong>
-              {getRoleScore(candidate, role, "prompt_4_6y").toFixed(1)}
-            </strong>
-          </span>
-        </div>
-      )}
-      <p>{evaluation.rationale_headline}</p>
-      <div className="rubric-breakdown">
-        <h4>Score breakdown</h4>
-        {Object.entries(evaluation.sub_scores).map(([key, value]) => (
-          <div className="rubric-score" key={key}>
-            <div>
-              <span>{criterionLabels[key] ?? key.replaceAll("_", " ")}</span>
-              <strong>{value.toFixed(1)} / 100</strong>
-            </div>
-            <meter
-              min={0}
-              max={100}
-              value={value}
-              aria-label={criterionLabels[key] ?? key.replaceAll("_", " ")}
-            >
-              {value.toFixed(1)}
-            </meter>
-          </div>
+      <ul className="check-list">
+        {requirementChecks(evaluation).map((check) => (
+          <li key={check.key} className={check.passed ? "passed" : "failed"}>
+            {check.passed ? (
+              <Check size={14} aria-label="Yes" />
+            ) : (
+              <X size={14} aria-label="No" />
+            )}
+            {check.label}
+          </li>
         ))}
-      </div>
-      <div className="role-requirements">
-        <h4>Role requirements</h4>
-        <dl className="value-list">
-          {Object.entries(evaluation.gate_probabilities).map(([key, value]) => (
-            <div key={key}>
-              <dt>{criterionLabels[key] ?? key.replaceAll("_", " ")}</dt>
-              <dd>{(value * 100).toFixed(1)}%</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="muted confidence-note">
-          Model confidence: {(evaluation.jev_confidence * 100).toFixed(0)}%
-        </p>
-      </div>
-      {evaluation.evidence_bullets.length > 0 && (
+      </ul>
+      {!compact && evaluation.evidence_bullets.length > 0 && (
         <div className="role-evidence">
-          <h4>Evidence</h4>
+          <h4>From the resume</h4>
           <ul className="evidence-list">
             {evaluation.evidence_bullets.map((evidence, index) => (
               <li key={index}>{evidence}</li>
             ))}
           </ul>
         </div>
+      )}
+      {!compact && evaluation.match_tier !== "mismatch" && (
+        <details className="rubric-breakdown">
+          <summary>How the score adds up</summary>
+          <p className="muted">
+            Each part is scored 0–100 and weighted. Missing requirements above
+            lower the total.
+          </p>
+          {Object.entries(evaluation.sub_scores).map(([key, value]) => (
+            <div className="rubric-score" key={key}>
+              <div>
+                <span>{criterionLabels[key] ?? key.replaceAll("_", " ")}</span>
+                <strong>{Math.round(value)}</strong>
+              </div>
+              <meter min={0} max={100} value={value} aria-label={criterionLabels[key] ?? key}>
+                {Math.round(value)}
+              </meter>
+            </div>
+          ))}
+        </details>
       )}
     </section>
   );
@@ -172,19 +135,15 @@ function RoleEvaluation({
 export function CandidateDrawer({
   candidate,
   band,
-  onBandChange,
   onClose,
 }: {
   candidate: EvaluatedCandidate;
   band: LcaBand;
-  onBandChange: (band: LcaBand) => void;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const [tab, setTab] = useState<"evaluation" | "resume" | "experience">(
-    "evaluation",
-  );
+  const [tab, setTab] = useState<"summary" | "resume" | "history">("summary");
   useEffect(() => {
     const element = dialog.current;
     if (element && !element.open) {
@@ -192,6 +151,15 @@ export function CandidateDrawer({
       element.showModal();
     }
   }, []);
+  const classification = candidate.primary_classification;
+  const triaged =
+    candidate.needs_human_review || classification === "neither_uncertain";
+  const isCompact = (role: Role) =>
+    (classification === "lca_consultant" || classification === "uiux_intern") &&
+    classification !== role;
+  const roles = (["lca_consultant", "uiux_intern"] as const)
+    .slice()
+    .sort((a, b) => Number(isCompact(a)) - Number(isCompact(b)));
 
   return (
     <dialog
@@ -215,37 +183,36 @@ export function CandidateDrawer({
         <header className="drawer-header">
           <div className="section-heading">
             <div className="drawer-identity">
-              <h2 id={titleId}>Candidate {candidate.initials_or_alias}</h2>
-              <span className="muted filename">{candidate.filename}</span>
-              <span className="badge">
-                {candidate.word_count} words ·{" "}
-                {candidate.parse_status === "ok" ? "Readable" : "Needs review"}
-              </span>
+              <h2 id={titleId}>{displayName(candidate)}</h2>
+              {candidate.matched_baseline && (
+                <span className="badge">Already in list</span>
+              )}
             </div>
             <button
               type="button"
               className="icon-button"
               onClick={() => dialog.current?.close()}
-              aria-label="Close candidate drawer"
+              aria-label="Close candidate details"
               autoFocus
             >
               <X size={18} />
             </button>
           </div>
-          <p className="muted">{candidate.education_summary}</p>
+          <p className="muted">{candidate.parse_status === "ok" && candidate.education_summary}</p>
           {candidate.source_url && (
             <a
               href={candidate.source_url}
               target="_blank"
               rel="noreferrer"
               className="source-link"
+              title={candidate.filename}
             >
-              <ExternalLink size={14} /> Source folder
+              <ExternalLink size={14} /> Open original resume
             </a>
           )}
         </header>
         <nav className="drawer-nav" aria-label="Candidate details">
-          {(["evaluation", "resume", "experience"] as const).map((item) => (
+          {(["summary", "resume", "history"] as const).map((item) => (
             <button
               key={item}
               type="button"
@@ -254,55 +221,55 @@ export function CandidateDrawer({
             >
               {
                 {
-                  evaluation: "Evaluation",
+                  summary: "Summary",
                   resume: "Resume",
-                  experience: "Experience",
+                  history: "Work history",
                 }[item]
               }
             </button>
           ))}
         </nav>
         <div className="drawer-body">
-          {candidate.parse_status !== "ok" && (
-            <div className="notice warning" role="status">
-              {candidate.parse_diagnostics ||
-                "The resume could not be read. Please inspect the source file."}
-            </div>
-          )}
-          {tab === "evaluation" && (
+          {tab === "summary" && (
             <>
-              <section className="profile-summary">
+              {(triaged ||
+                classification === "both" ||
+                candidate.crossover_badges.length > 0) && (
+              <section className={`profile-summary ${triaged ? "warning" : ""}`}>
                 <h3>
                   {candidate.needs_human_review
-                    ? "Needs human review"
-                    : candidate.primary_classification === "both"
-                      ? "Matches both roles"
-                      : candidate.primary_classification === "neither_uncertain"
-                        ? "Neither role"
-                        : roleLabels[candidate.primary_classification]}
+                    ? "Check this one manually"
+                    : classification === "both"
+                      ? "Fits both roles"
+                      : classification === "neither_uncertain"
+                        ? "Not a fit for either role"
+                        : `Best fit: ${roleLabels[classification]}`}
                 </h3>
-                <p className="muted">{candidate.classification_reason}</p>
+                {candidate.needs_human_review && <p>{triageReason(candidate)}</p>}
                 {candidate.crossover_badges.map((badge) => (
-                  <p key={badge} className="crossover-note">
-                    {badge}
+                  <p key={badge} className="muted">
+                    Background spans {crossoverLabel(badge)}.
                   </p>
                 ))}
               </section>
-              <ExperienceTarget band={band} onChange={onBandChange} />
-              <div className="role-comparison">
-                {(["lca_consultant", "uiux_intern"] as const).map((role) => (
+              )}
+              <div
+                className={`role-comparison ${roles.some(isCompact) ? "stacked" : ""}`}
+              >
+                {roles.map((role) => (
                   <RoleEvaluation
                     key={role}
                     candidate={candidate}
                     role={role}
                     band={band}
+                    compact={isCompact(role)}
                   />
                 ))}
               </div>
               {(candidate.skills_and_tools.length > 0 ||
                 candidate.key_projects_and_roles.length > 0) && (
                 <details className="profile-details">
-                  <summary>Skills and projects</summary>
+                  <summary>All skills and projects</summary>
                   <p className="muted">
                     {candidate.skills_and_tools.join(" · ")}
                   </p>
@@ -317,11 +284,17 @@ export function CandidateDrawer({
           )}
           {tab === "resume" && (
             <>
-              {candidate.forensic_repairs.length > 0 ? (
+              {candidate.parse_status !== "ok" ? (
+                <div className="notice warning" role="status">
+                  We couldn't read text from this file. Use "Open original
+                  resume" above.
+                </div>
+              ) : candidate.forensic_repairs.length > 0 ? (
                 <details className="repair-details">
                   <summary>
-                    {candidate.forensic_repairs.length} text repairs. Changes
-                    are highlighted below.
+                    We fixed {candidate.forensic_repairs.length} words that
+                    broke when the file was converted. They're highlighted
+                    below.
                   </summary>
                   <ul className="repair-list">
                     {candidate.forensic_repairs.map((repair, index) => (
@@ -335,33 +308,27 @@ export function CandidateDrawer({
                     ))}
                   </ul>
                 </details>
-              ) : (
-                <p className="muted">No text repairs recorded.</p>
-              )}
+              ) : null}
               <ResumeText
                 text={candidate.healed_text}
                 repairs={candidate.forensic_repairs}
               />
             </>
           )}
-          {tab === "experience" && (
+          {tab === "history" && (
             <>
               <section>
-                <h3>How experience is counted</h3>
-                <p className="muted">
-                  Overlapping roles count once within each domain and across the
-                  full career. Teaching assistantships are excluded from
-                  industry LCA experience.
-                </p>
                 <dl className="value-list">
                   <div>
-                    <dt>Total career</dt>
+                    <dt>Whole career</dt>
                     <dd>{candidate.total_career_years.toFixed(1)} yrs</dd>
                   </div>
                   {(["lca_consultant", "uiux_intern"] as const).map((role) => (
                     <div key={role}>
                       <dt>
-                        {role === "lca_consultant" ? "LCA / sustainability" : "UI/UX design"}
+                        {role === "lca_consultant"
+                          ? "Sustainability / LCA"
+                          : "UI/UX design"}
                       </dt>
                       <dd>
                         {(
@@ -373,17 +340,15 @@ export function CandidateDrawer({
                   ))}
                 </dl>
                 <p className="muted">
-                  Domain years come from the work history. Sustainability work
-                  can include ESG or compliance without hands-on LCA modeling.
-                  Role requirements are assessed separately.
+                  Overlapping jobs are counted once. Teaching assistant roles
+                  don't count as industry LCA experience.
                 </p>
               </section>
               <section>
-                <h3>Work history</h3>
                 {candidate.work_spans.length === 0 ? (
                   <p className="muted">
-                    No employment dates extracted. Review the resume for project
-                    or student experience.
+                    No job dates found. Check the resume for projects or
+                    student work.
                   </p>
                 ) : (
                   <ul className="work-history">
@@ -392,35 +357,23 @@ export function CandidateDrawer({
                         <h4>{span.title}</h4>
                         <p>{span.organization}</p>
                         <p className="muted">
-                          {span.start_date || "Start unknown"} →{" "}
-                          {span.end_date || "End unknown"} ·{" "}
-                          {span.months_duration} months
-                        </p>
-                        <p className="muted">
+                          {formatMonth(span.start_date)} –{" "}
+                          {formatMonth(span.end_date)} ·{" "}
+                          {span.months_duration} months ·{" "}
                           {
                             {
-                              lca_sustainability: "LCA / sustainability",
-                              uiux_design: "UI/UX design",
+                              lca_sustainability: "Sustainability",
+                              uiux_design: "Design",
                               other: "Other field",
                             }[span.domain]
-                          }{" "}
-                          ·{" "}
-                          {span.is_internship
-                            ? "Internship / assistantship"
-                            : "Employment / freelance"}
+                          }
+                          {span.is_internship && " · Internship"}
                         </p>
                       </li>
                     ))}
                   </ul>
                 )}
               </section>
-              <details>
-                <summary>Document reference</summary>
-                <p className="document-hash">
-                  SHA-256: {candidate.content_hash}
-                </p>
-                <p className="muted">{candidate.word_count} extracted words</p>
-              </details>
             </>
           )}
         </div>

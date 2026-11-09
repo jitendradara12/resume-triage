@@ -2,10 +2,18 @@ import {
   displayedRole,
   experienceSummary,
   getRoleScore,
+  minimumYears,
   roleLabels,
   type CandidateView,
   type LcaBand,
 } from "./candidates";
+import {
+  crossoverLabel,
+  displayName,
+  seniorityNote,
+  tierLabels,
+  triageReason,
+} from "./presentation";
 import type { EvaluatedCandidate } from "./types";
 
 interface Props {
@@ -18,7 +26,7 @@ interface Props {
 export function CandidateTable({ candidates, view, band, onSelect }: Props) {
   const mixedRoles = view !== "lca_consultant" && view !== "uiux_intern";
   const triageView = view === "rejected" || view === "human_review";
-  const summaryLabel = triageView ? "Triage reason" : "Why they match";
+  const summaryLabel = triageView ? "Why they're here" : "Why this rank";
   return (
     <div
       className="table-wrapper"
@@ -36,7 +44,7 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
             <th scope="col">Candidate</th>
             <th scope="col">{summaryLabel}</th>
             <th scope="col">Experience</th>
-            <th scope="col">Score / 100</th>
+            <th scope="col">Score /100</th>
           </tr>
         </thead>
         <tbody>
@@ -50,10 +58,9 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
             candidates.map((candidate, index) => {
               const role = displayedRole(candidate, view, band);
               const evaluation = candidate.evaluations[role];
-              const years = candidate.relevant_years_by_domain[role] ?? 0;
-              const belowTarget =
-                role === "lca_consultant" &&
-                years < (band === "jd_2_3y" ? 2 : 4);
+              const tier = tierLabels[evaluation.match_tier];
+              const score = getRoleScore(candidate, role, band);
+              const seniority = seniorityNote(candidate, role, minimumYears[band]);
               return (
                 <tr
                   key={candidate.candidate_id}
@@ -69,76 +76,78 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
                             event.stopPropagation();
                             onSelect(candidate);
                           }}
-                          aria-label={`Review candidate ${candidate.initials_or_alias}, ${candidate.filename}`}
+                          aria-label={`Review candidate ${displayName(candidate)}`}
                         >
-                          {candidate.initials_or_alias}
+                          {displayName(candidate)}
                         </button>
                         <span
                           className="candidate-file"
-                          title={candidate.filename}
+                          title={candidate.education_summary}
                         >
-                          {candidate.filename}
+                          {candidate.parse_status === "ok" &&
+                            candidate.education_summary}
                         </span>
                         {candidate.matched_baseline && (
-                          <span className="badge">Baseline match</span>
+                          <span className="badge">Already in list</span>
                         )}
                       </div>
                     </div>
                   </th>
                   <td className="candidate-summary" data-label={summaryLabel}>
-                    {mixedRoles && !triageView && (
-                      <span className="role-label">{roleLabels[role]}</span>
+                    {triageView ? (
+                      <p>{triageReason(candidate)}</p>
+                    ) : (
+                      <>
+                        <span className={`pill ${tier.tone}`}>
+                          {tier.label}
+                          {mixedRoles && ` · ${roleLabels[role]}`}
+                        </span>
+                        {evaluation.evidence_bullets[0] && (
+                          <p className="evidence-snippet">
+                            {evaluation.evidence_bullets[0]}
+                          </p>
+                        )}
+                      </>
                     )}
-                    <p>
-                      {triageView
-                        ? candidate.classification_reason
-                        : evaluation.rationale_headline}
-                    </p>
                     {candidate.skills_and_tools.length > 0 && (
                       <p className="muted skill-summary">
                         {candidate.skills_and_tools.slice(0, 4).join(" · ")}
                       </p>
                     )}
-                    <div className="candidate-flags">
-                      {candidate.needs_human_review ? (
-                        <span className="badge warning">Needs review</span>
-                      ) : !triageView && evaluation.seniority_flag === "overqualified" ? (
-                        <span className="badge warning">Overqualified</span>
-                      ) : !triageView && belowTarget ? (
-                        <span className="badge">Below experience target</span>
-                      ) : null}
-                      {candidate.forensic_repairs.length > 0 && (
-                        <span className="badge">Text repaired</span>
+                    {!triageView &&
+                      (seniority || candidate.crossover_badges.length > 0) && (
+                        <div className="candidate-flags">
+                          {seniority && (
+                            <span className="badge warning">
+                              {seniority.label}
+                            </span>
+                          )}
+                          {candidate.crossover_badges.map((badge) => (
+                            <span key={badge} className="badge">
+                              {crossoverLabel(badge)}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                      {candidate.crossover_badges.length > 0 && (
-                        <span className="badge">Domain crossover</span>
-                      )}
-                    </div>
                   </td>
                   <td data-label="Experience" className="experience-cell">
                     <strong>{experienceSummary(candidate, role)}</strong>
-                    <span className="muted">
-                      {candidate.total_career_years.toFixed(1)} yrs total
-                    </span>
+                    {candidate.total_career_years.toFixed(1) !==
+                      (candidate.relevant_years_by_domain[role] ?? 0).toFixed(1) && (
+                      <span className="muted">
+                        of {candidate.total_career_years.toFixed(1)} yrs total
+                      </span>
+                    )}
                   </td>
-                  <td data-label="Score / 100" className="score-cell">
-                    <strong
-                      className={`score ${getRoleScore(candidate, role, band) >= 65 ? "strong-score" : ""}`}
-                    >
-                      {getRoleScore(candidate, role, band).toFixed(1)}
+                  <td data-label="Score /100" className="score-cell">
+                    <strong className={`score ${tier.tone}`}>
+                      {Math.round(score)}
                     </strong>
                     {mixedRoles && (
                       <span className="muted">
-                        LCA{" "}
-                        {getRoleScore(
-                          candidate,
-                          "lca_consultant",
-                          band,
-                        ).toFixed(1)}{" "}
+                        LCA {Math.round(getRoleScore(candidate, "lca_consultant", band))}{" "}
                         · UI/UX{" "}
-                        {getRoleScore(candidate, "uiux_intern", band).toFixed(
-                          1,
-                        )}
+                        {Math.round(getRoleScore(candidate, "uiux_intern", band))}
                       </span>
                     )}
                   </td>

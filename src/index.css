@@ -338,7 +338,7 @@ tbody tr:focus-within {
   background: var(--surface);
 }
 tbody th {
-  width: 21%;
+  width: 24%;
   font-weight: 400;
 }
 .candidate-identity {
@@ -364,12 +364,12 @@ tbody th {
   text-underline-offset: 3px;
 }
 .candidate-file {
-  display: block;
-  max-width: 165px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   font-size: 12px;
+  line-height: 1.4;
   color: var(--muted);
   margin-top: 3px;
 }
@@ -437,9 +437,6 @@ thead th:last-child {
   font-weight: 400;
   color: var(--muted);
 }
-.strong-score {
-  color: var(--accent);
-}
 .empty-state {
   padding: 48px 20px;
   text-align: center;
@@ -457,9 +454,6 @@ summary {
   max-width: 75ch;
   padding-top: 8px;
   color: var(--muted);
-}
-.methodology-content p + p {
-  margin-top: 12px;
 }
 
 dialog.candidate-drawer {
@@ -545,7 +539,7 @@ dialog.candidate-drawer::backdrop {
   display: grid;
   gap: 20px;
   margin-top: 24px;
-  align-items: stretch;
+  align-items: start;
 }
 .role-evaluation {
   padding: 20px;
@@ -564,27 +558,16 @@ dialog.candidate-drawer::backdrop {
   margin-top: 4px;
 }
 .role-score {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   flex-shrink: 0;
 }
-.match-tier {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: capitalize;
-}
 .score-variants {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-block: 16px;
-  padding: 10px;
-  background: var(--surface);
-  border-radius: 4px;
   font-size: 12px;
 }
 .rubric-breakdown,
-.role-requirements,
 .role-evidence {
   margin-top: 20px;
 }
@@ -628,16 +611,6 @@ dialog.candidate-drawer::backdrop {
   background: var(--primary);
   border-radius: 4px;
 }
-.role-requirements .value-list {
-  font-size: 12px;
-  margin-block: 0;
-}
-.role-requirements .value-list > div {
-  padding-block: 3px;
-}
-.confidence-note {
-  font-size: 11px;
-}
 .profile-details {
   margin-top: 20px;
 }
@@ -651,7 +624,7 @@ dialog.candidate-drawer::backdrop {
   margin-top: 0;
 }
 @media (min-width: 840px) {
-  .role-comparison {
+  .role-comparison:not(.stacked) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -660,10 +633,6 @@ dialog.candidate-drawer::backdrop {
 }
 .drawer-body .section-heading p {
   margin-top: 4px;
-  font-size: 12px;
-}
-.crossover-note {
-  color: var(--primary);
   font-size: 12px;
 }
 .evidence-list {
@@ -713,12 +682,6 @@ mark {
   text-decoration-color: var(--warn);
   text-underline-offset: 3px;
 }
-.document-hash {
-  font:
-    12px ui-monospace,
-    monospace;
-  overflow-wrap: anywhere;
-}
 
 @media (max-width: 900px) {
   .ranking-context {
@@ -732,9 +695,6 @@ mark {
   }
   .candidate-identity {
     gap: 8px;
-  }
-  .candidate-file {
-    max-width: 115px;
   }
 }
 @media (max-width: 680px) {
@@ -757,6 +717,7 @@ mark {
     gap: 0 16px;
   }
   .candidate-nav button {
+    white-space: nowrap;
     font-size: 13px;
     padding-block: 10px;
   }
@@ -801,8 +762,8 @@ mark {
   tbody th {
     padding-bottom: 4px;
   }
-  .candidate-file {
-    max-width: 65vw;
+  .skill-summary {
+    display: none;
   }
   .candidate-summary {
     padding-top: 4px;
@@ -844,4 +805,83 @@ mark {
   button {
     transition: none;
   }
+}
+
+.score.good {
+  color: var(--accent);
+}
+.score.bad {
+  color: var(--muted);
+}
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+.pill.good {
+  background: oklch(0.94 0.05 155);
+  color: var(--accent);
+}
+.pill.maybe {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.pill.bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.evidence-snippet {
+  margin-top: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.check-list {
+  margin-top: 14px;
+  font-size: 13px;
+}
+.check-list li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-block: 3px;
+}
+.check-list .passed svg {
+  color: var(--accent);
+}
+.check-list .failed {
+  color: var(--muted);
+}
+.check-list .failed svg {
+  color: var(--danger);
+}
+.role-evaluation.compact {
+  background: var(--surface);
+}
+.profile-summary.warning {
+  background: var(--warn-soft);
+}
+.methodology-content {
+  list-style: disc;
+  padding-left: 20px;
+}
+.methodology-content li + li {
+  margin-top: 8px;
+}
+.role-comparison:first-child {
+  margin-top: 0;
+}
+.role-evaluation.compact {
+  padding-block: 14px;
+}
+.role-evaluation.compact .check-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
 }

@@ -106,43 +106,39 @@ export function App() {
       </header>
       <main className="page-width main-content">
         <details className="methodology">
-          <summary>How ranking works</summary>
-          <div className="methodology-content">
-            <p className="muted upload-help">
-              Upload a PDF, Word document, or text file to rank it with the
-              existing candidates. Upload evaluations are saved in this browser
-              and stay available after refresh.
-            </p>
-            <p>
-              Resumes are cleaned with an audit trail, then evaluated against
-              each role. Scores support a reviewer's judgment; they are not
-              hiring decisions.
-            </p>
-            <p>
-              LCA weights software and data at 40%, methods and standards at
-              35%, and project depth at 25%. UI/UX weights craft and systems at
-              45%, UX research at 15%, and product thinking at 40%. Requirement
-              probabilities adjust each weighted score.
-            </p>
-            <p>
-              LCA scores also reflect the selected experience target. Both
-              targets are precomputed, so switching is instant. UI/UX craft
-              scores have no experience penalty; candidates with more than two
-              years of relevant experience are flagged as overqualified.
-            </p>
-            <p>
-              Overlapping work periods count once. Relevant experience is
-              separate from total career experience. Sparse or unreadable
-              resumes go to human review. Re-uploading a baseline resume keeps
-              its original evaluation.
-            </p>
-            <p>
-              Open a candidate for the evidence, score breakdown, full resume,
-              text repairs, and work history. Role groups reflect the stored
-              classification; changing the experience target changes scores and
-              order.
-            </p>
-          </div>
+          <summary>How candidates are ranked</summary>
+          <ul className="methodology-content">
+            <li>
+              Every resume is read, broken words from file conversion are
+              fixed (each fix is shown on the Resume tab), and it gets a 0–100
+              score for each role.
+            </li>
+            <li>
+              <strong>LCA Consultant:</strong> LCA tools &amp; data 40%,
+              standards &amp; methods 35%, project depth 25%. Pick the
+              experience you want — scores update instantly.
+            </li>
+            <li>
+              <strong>UI/UX Intern:</strong> UI craft 45%, product thinking 40%,
+              user research 15%. No penalty for experience, but anyone with
+              2+ years is marked "More senior than an intern".
+            </li>
+            <li>
+              Missing a key requirement (e.g. no LCA software, no Figma) lowers
+              the score. Only jobs in the field count as experience, and
+              overlapping jobs count once.
+            </li>
+            <li>
+              Unreadable or very short resumes go to "Check manually" instead
+              of being rejected. Scores guide your judgment — they don't make
+              the decision.
+            </li>
+            <li>
+              Upload a PDF, Word, or text resume to see where it ranks. Uploads
+              stay in this browser; re-uploading an existing resume shows its
+              original result.
+            </li>
+          </ul>
         </details>
         {isUploading && (
           <p className="notice" role="status">
@@ -199,14 +195,14 @@ export function App() {
               {
                 {
                   lca_consultant:
-                    "Life cycle assessment and sustainability experience.",
+                    "Ranked by fit for the Life Cycle Assessment consultant role.",
                   uiux_intern:
-                    "Product design craft for a 0–1 year internship.",
-                  both: "Candidates who match both roles or have evidence across domains.",
+                    "Ranked by fit for the 0–1 year design internship.",
+                  both: "People whose background spans two fields. Worth a look for either role.",
                   human_review:
-                    "Sparse, unreadable, or uncertain profiles that need a closer look.",
+                    "The system couldn't judge these. Open each one and decide.",
                   rejected:
-                    "Profiles with strong evidence of low alignment with both roles.",
+                    "No sign of the core skills for either role.",
                 }[view]
               }
             </p>
@@ -221,7 +217,7 @@ export function App() {
                 checked={hideOverqualified}
                 onChange={(event) => setHideOverqualified(event.target.checked)}
               />{" "}
-              Hide overqualified, &gt;2 yrs
+              Hide candidates with 2+ years of design experience
             </label>
           )}
         </div>
@@ -242,7 +238,7 @@ export function App() {
               value={sort}
               onChange={(event) => setSort(event.target.value as SortField)}
             >
-              <option value="score">Match score</option>
+              <option value="score">Score</option>
               <option value="relevant_exp">Relevant experience</option>
               <option value="total_exp">Total experience</option>
             </select>
@@ -251,7 +247,7 @@ export function App() {
         <p className="result-count muted" role="status">
           {visibleCandidates.length} candidates ·{" "}
           {sort === "score" ? "Highest score first" : "Most experience first"} ·
-          Select a candidate to review
+          Click a candidate to see why
         </p>
         <CandidateTable
           candidates={visibleCandidates}
@@ -265,7 +261,6 @@ export function App() {
           key={selected.candidate_id}
           candidate={selected}
           band={band}
-          onBandChange={setBand}
           onClose={() => setSelected(null)}
         />
       )}

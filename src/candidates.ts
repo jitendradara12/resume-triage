@@ -13,9 +13,9 @@ export const roleLabels: Record<Role, string> = {
 export const candidateViews: { id: CandidateView; label: string }[] = [
   { id: "lca_consultant", label: roleLabels.lca_consultant },
   { id: "uiux_intern", label: roleLabels.uiux_intern },
-  { id: "both", label: "Crossovers" },
-  { id: "human_review", label: "Human review" },
-  { id: "rejected", label: "Rejected" },
+  { id: "both", label: "Mixed skills" },
+  { id: "human_review", label: "Check manually" },
+  { id: "rejected", label: "Not a fit" },
 ];
 
 export function upsertCandidate(
@@ -68,13 +68,14 @@ export function getRoleScore(
     : evaluation.overall_score;
 }
 
+export const minimumYears: Record<LcaBand, number> = {
+  jd_2_3y: 2,
+  prompt_4_6y: 4,
+};
+
 export function experienceSummary(candidate: EvaluatedCandidate, role: Role) {
-  const evaluation = candidate.evaluations[role];
-  const label =
-    !evaluation.hard_gates_passed && evaluation.overall_score < 25
-      ? role === "lca_consultant" ? "LCA / sustainability" : "UI/UX design"
-      : "relevant";
-  return `${(candidate.relevant_years_by_domain[role] ?? 0).toFixed(1)} yrs ${label}`;
+  const domain = role === "lca_consultant" ? "sustainability / LCA" : "UI/UX design";
+  return `${(candidate.relevant_years_by_domain[role] ?? 0).toFixed(1)} yrs in ${domain}`;
 }
 
 export function displayedRole(

@@ -4,6 +4,7 @@ import {
   type CandidateView,
   type LcaBand,
 } from "./candidates";
+import { tierLabels, triageReason } from "./presentation";
 import type { EvaluatedCandidate } from "./types";
 
 export function exportCandidates(
@@ -11,40 +12,52 @@ export function exportCandidates(
   view: CandidateView,
   band: LcaBand,
 ) {
+  const groupLabel = {
+    lca_consultant: "LCA Consultant",
+    uiux_intern: "UI/UX Design Intern",
+    both: "Fits both roles",
+    neither_uncertain: "Not a fit",
+  };
   const rows: (string | number)[][] = [
     [
-      "Candidate ID",
-      "Alias",
-      "Filename",
-      "Classification",
-      "Needs human review",
-      "LCA score (2-3 years)",
-      "LCA score (4-6 years)",
+      "Rank",
+      "Candidate",
+      "Resume file",
+      "Best fit",
+      "Verdict",
+      "LCA score (2-3 yrs wanted)",
+      "LCA score (4-6 yrs wanted)",
       "UI/UX score",
-      "LCA / sustainability years (extracted)",
-      "UI/UX design years (extracted)",
+      "Years in sustainability / LCA",
+      "Years in UI/UX design",
       "Total career years",
-      "Text repairs",
-      "Rationale",
+      "Why",
     ],
-    ...candidates.map((candidate) => [
-      candidate.candidate_id,
-      candidate.initials_or_alias,
-      candidate.filename,
-      candidate.primary_classification,
-      candidate.needs_human_review ? "YES" : "NO",
-      getRoleScore(candidate, "lca_consultant", "jd_2_3y"),
-      getRoleScore(candidate, "lca_consultant", "prompt_4_6y"),
-      getRoleScore(candidate, "uiux_intern", band),
-      candidate.relevant_years_by_domain.lca_consultant ?? 0,
-      candidate.relevant_years_by_domain.uiux_intern ?? 0,
-      candidate.total_career_years,
-      candidate.forensic_repairs.length,
-      candidate.needs_human_review || candidate.primary_classification === "neither_uncertain"
-        ? candidate.classification_reason
-        : candidate.evaluations[displayedRole(candidate, view, band)]
-            .rationale_headline,
-    ]),
+    ...candidates.map((candidate, index) => {
+      const evaluation =
+        candidate.evaluations[displayedRole(candidate, view, band)];
+      const triaged =
+        candidate.needs_human_review ||
+        candidate.primary_classification === "neither_uncertain";
+      return [
+        index + 1,
+        candidate.initials_or_alias,
+        candidate.filename,
+        candidate.needs_human_review
+          ? "Check manually"
+          : groupLabel[candidate.primary_classification],
+        triaged ? "" : tierLabels[evaluation.match_tier].label,
+        Math.round(getRoleScore(candidate, "lca_consultant", "jd_2_3y")),
+        Math.round(getRoleScore(candidate, "lca_consultant", "prompt_4_6y")),
+        Math.round(getRoleScore(candidate, "uiux_intern", band)),
+        (candidate.relevant_years_by_domain.lca_consultant ?? 0).toFixed(1),
+        (candidate.relevant_years_by_domain.uiux_intern ?? 0).toFixed(1),
+        candidate.total_career_years.toFixed(1),
+        triaged
+          ? triageReason(candidate)
+          : (evaluation.evidence_bullets[0] ?? ""),
+      ];
+    }),
   ];
   const csv = rows
     .map((row) =>
