@@ -1,14 +1,17 @@
+import asyncio
 import json
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from api.index import app
+from core.clients import run_stage1_extraction
 from core.parser import apply_deterministic_repairs, compute_content_hash, parse_document_bytes
 from core.schemas import EvaluatedCandidate, Stage1Extraction, WorkSpan
 from core.scoring import aggregate_candidate, compute_experience_years, compute_lca_match
@@ -53,10 +56,11 @@ class TestBenchmarkSuite(unittest.TestCase):
         self.assertEqual(bs.evaluations["uiux_intern"].seniority_flag, "overqualified")
 
     def test_05_ta_underqualified_pkg(self):
-        # 4. PKG (1793682784369) -> IIT Dhanbad TA -> lca_consultant, underqualified
+        # Only the environmental internship counts; teaching does not establish industry LCA experience.
         pkg = self.candidates["anonymized_PKG_1793682784369.docx"]
-        self.assertEqual(pkg.primary_classification, "lca_consultant")
         self.assertEqual(pkg.evaluations["lca_consultant"].seniority_flag, "underqualified")
+        self.assertEqual(pkg.relevant_years_by_domain["lca_consultant"], 0.25)
+        self.assertFalse(pkg.evaluations["lca_consultant"].hard_gates_passed)
 
     def test_06_crossover_badge_aps(self):
         # 5. APS (1793685080222) -> UI/UX Designer + Sustainability SaaS project -> crossover badge
@@ -144,9 +148,60 @@ class TestBenchmarkSuite(unittest.TestCase):
     def test_14_deterministic_repairs_logic(self):
         raw = "We measured Scope s emissions according to ISO / s."
         healed, repairs = apply_deterministic_repairs(raw)
-        self.assertIn("Scope 1, 2, 3 emissions", healed)
-        self.assertIn("ISO 14040/14044 standards", healed)
+        self.assertIn("Scope [numbers unreadable] emissions", healed)
+        self.assertIn("ISO [standard numbers unreadable]", healed)
         self.assertEqual(len(repairs), 2)
+
+    def test_repairs_preserve_uncertainty_and_explicit_facts(self):
+        cases = [
+            ("over 2.s", "[experience duration unreadable]"),
+            ("eliminating 2,e.", "eliminating [emissions figure unreadable]."),
+            ("for 40-omers.", "for [customer count unreadable]."),
+            ("ISO :2015", "ISO [standard number unreadable]:2015"),
+            ("ISO 9001:2015, ISO :2015, ISO :2018", "ISO 9001:2015, ISO [standard number unreadable]:2015, ISO [standard number unreadable]:2018"),
+            ("St. Xavier's High School, Bhavnagar, 2016 - 2027", "St. Xavier's High School, Bhavnagar, 2016 - 2027 [year needs verification]"),
+            ("UI/UX Designer — S K ILLS AN D TOOLS   Dec 2025", "UI/UX Designer — [employer unreadable]   Dec 2025"),
+        ]
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                healed, repairs = apply_deterministic_repairs(raw)
+                self.assertEqual(healed, expected)
+                self.assertEqual(len(repairs), 1)
+                self.assertIn(repairs[0].raw_fragment, raw)
+                self.assertIn(repairs[0].repaired_value, healed)
+
+        explicit = "ISO 14040/14044, Scope 1, 2, 3, 2.5 years, 2,000+ tCO2e, 2016 - 2018"
+        self.assertEqual(apply_deterministic_repairs(explicit), (explicit, []))
+
+    def test_extraction_cannot_repair_source_or_invent_evidence(self):
+        raw = "Used Figma for prototypes.\nApplied ISO / s."
+        payload = {
+            "additional_forensic_repairs": [{"raw_fragment": "ISO [standard numbers unreadable]", "repaired_value": "ISO 14040/14044", "reason": "Guessed from LCA context"}],
+            "education_summary": "Not listed",
+            "skills_and_tools": ["Figma", "ISO 14040/14044"],
+            "key_projects_and_roles": [],
+            "work_spans": [],
+            "lca_evidence_bullets": ["Applied ISO 14040/14044."],
+            "uiux_evidence_bullets": ["Used Figma for prototypes.", "Built 40+ prototypes."],
+        }
+        client = Mock()
+        client.models.generate_content.return_value = SimpleNamespace(text=json.dumps(payload))
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}), patch("core.clients.get_gemini_client", return_value=client):
+            result = asyncio.run(run_stage1_extraction(raw))
+        client.models.generate_content.assert_called_once()
+        self.assertEqual(result.healed_text, "Used Figma for prototypes.\nApplied ISO [standard numbers unreadable].")
+        self.assertEqual(result.forensic_repairs, apply_deterministic_repairs(raw)[1])
+        self.assertEqual(result.skills_and_tools, ["Figma"])
+        self.assertEqual(result.lca_evidence_bullets, [])
+        self.assertEqual(result.uiux_evidence_bullets, ["Used Figma for prototypes."])
+
+    def test_baseline_cleanup_matches_source(self):
+        for candidate in self.candidates.values():
+            with self.subTest(filename=candidate.filename):
+                raw, _, _ = parse_document_bytes((ROOT / "resumes" / candidate.filename).read_bytes(), candidate.filename)
+                healed, repairs = apply_deterministic_repairs(raw)
+                self.assertEqual(candidate.healed_text, healed)
+                self.assertEqual(candidate.forensic_repairs, repairs)
 
     def test_15_live_upload_fallback_classification_and_memory_lookup(self):
         from core.scoring import _parse_date_to_month_index

@@ -10,6 +10,7 @@ import {
   getRoleScore,
   selectCandidates,
 } from "../src/candidates.ts";
+import { fitTier } from "../src/presentation.ts";
 
 const baseline = JSON.parse(
   readFileSync(
@@ -35,7 +36,7 @@ test("review queues and role groups keep the 47 baseline candidates discoverable
       ({ id }) =>
         baseline.filter((candidate) => belongsToView(candidate, id)).length,
     ),
-    [18, 23, 14, 2, 4],
+    [16, 23, 13, 2, 6],
   );
 });
 
@@ -82,6 +83,23 @@ test("both experience targets sort by the same score and role shown to the revie
     before.map((candidate) => candidate.candidate_id),
     after.map((candidate) => candidate.candidate_id),
   );
+});
+
+test("LCA fit badges follow the selected experience score without promoting weak or uncertain matches", () => {
+  const candidate = baseline.find((candidate) =>
+    candidate.evaluations.lca_consultant.match_tier === "strong_match" &&
+    candidate.evaluations.lca_consultant.score_variants.prompt_4_6y < 65,
+  );
+  assert.ok(candidate);
+  const evaluation = candidate.evaluations.lca_consultant;
+  assert.equal(fitTier(evaluation, getRoleScore(candidate, "lca_consultant", "jd_2_3y")), "strong_match");
+  assert.equal(fitTier(evaluation, getRoleScore(candidate, "lca_consultant", "prompt_4_6y")), "potential_match");
+  assert.equal(fitTier(evaluation, 65), "strong_match");
+  assert.equal(fitTier(evaluation, 38), "potential_match");
+  assert.equal(fitTier(evaluation, 37.9), "mismatch");
+  assert.equal(fitTier({ ...evaluation, match_tier: "mismatch" }, 65), "mismatch");
+  assert.equal(fitTier({ ...evaluation, match_tier: "uncertain" }, 0), "uncertain");
+  assert.equal(fitTier({ ...evaluation, role_id: "uiux_intern" }, 50), "strong_match");
 });
 
 test("the overqualification filter hides senior designers without changing their craft scores", () => {

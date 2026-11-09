@@ -4,7 +4,7 @@ import {
   type CandidateView,
   type LcaBand,
 } from "./candidates";
-import { tierLabels, triageReason } from "./presentation";
+import { fitTier, tierLabels, triageReason } from "./presentation";
 import type { EvaluatedCandidate } from "./types";
 
 export function exportCandidates(
@@ -16,26 +16,26 @@ export function exportCandidates(
     lca_consultant: "LCA Consultant",
     uiux_intern: "UI/UX Design Intern",
     both: "Fits both roles",
-    neither_uncertain: "Not a fit",
+    neither_uncertain: "Low match",
   };
   const rows: (string | number)[][] = [
     [
       "Rank",
       "Candidate",
       "Resume file",
-      "Best fit",
-      "Verdict",
+      "Classification",
+      "Displayed role fit",
       "LCA score (2-3 yrs wanted)",
       "LCA score (4-6 yrs wanted)",
       "UI/UX score",
       "Years in sustainability / LCA",
       "Years in UI/UX design",
-      "Total career years",
+      "Counted career years",
       "Why",
     ],
     ...candidates.map((candidate, index) => {
-      const evaluation =
-        candidate.evaluations[displayedRole(candidate, view, band)];
+      const role = displayedRole(candidate, view, band);
+      const evaluation = candidate.evaluations[role];
       const triaged =
         candidate.needs_human_review ||
         candidate.primary_classification === "neither_uncertain";
@@ -46,7 +46,7 @@ export function exportCandidates(
         candidate.needs_human_review
           ? "Check manually"
           : groupLabel[candidate.primary_classification],
-        triaged ? "" : tierLabels[evaluation.match_tier].label,
+        triaged ? "" : tierLabels[fitTier(evaluation, getRoleScore(candidate, role, band))].label,
         Math.round(getRoleScore(candidate, "lca_consultant", "jd_2_3y")),
         Math.round(getRoleScore(candidate, "lca_consultant", "prompt_4_6y")),
         Math.round(getRoleScore(candidate, "uiux_intern", band)),

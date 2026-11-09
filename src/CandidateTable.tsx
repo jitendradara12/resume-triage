@@ -10,6 +10,7 @@ import {
 import {
   crossoverLabel,
   displayName,
+  fitTier,
   seniorityNote,
   tierLabels,
   triageReason,
@@ -21,12 +22,13 @@ interface Props {
   view: CandidateView;
   band: LcaBand;
   onSelect: (candidate: EvaluatedCandidate) => void;
+  filtered: boolean;
 }
 
-export function CandidateTable({ candidates, view, band, onSelect }: Props) {
+export function CandidateTable({ candidates, view, band, onSelect, filtered }: Props) {
   const mixedRoles = view !== "lca_consultant" && view !== "uiux_intern";
   const triageView = view === "rejected" || view === "human_review";
-  const summaryLabel = triageView ? "Why they're here" : "Why this rank";
+  const summaryLabel = triageView ? "Why they're here" : "Fit & evidence";
   return (
     <div
       className="table-wrapper"
@@ -51,15 +53,17 @@ export function CandidateTable({ candidates, view, band, onSelect }: Props) {
           {candidates.length === 0 ? (
             <tr>
               <td colSpan={4} className="empty-state">
-                No candidates found. Clear the search or change your filters.
+                {filtered
+                  ? "No candidates match these filters. Clear the search or change your filters."
+                  : "No candidates in this group."}
               </td>
             </tr>
           ) : (
             candidates.map((candidate, index) => {
               const role = displayedRole(candidate, view, band);
               const evaluation = candidate.evaluations[role];
-              const tier = tierLabels[evaluation.match_tier];
               const score = getRoleScore(candidate, role, band);
+              const tier = tierLabels[fitTier(evaluation, score)];
               const seniority = seniorityNote(candidate, role, minimumYears[band]);
               return (
                 <tr

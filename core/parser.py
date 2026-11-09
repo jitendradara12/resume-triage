@@ -64,132 +64,132 @@ def parse_document_bytes(file_bytes: bytes, filename: str) -> tuple[str, ParseSt
         return "", "corrupted", f"Failed to parse {filename}: {exc}"
 
 
-# Deterministic forensic repairs for known regex/anonymizer damage across the corpus
+# Mark damaged facts explicitly; context alone cannot recover their original values.
 _DETERMINISTIC_REPAIRS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(r"\bScope\s+s\b"),
-        "Scope 1, 2, 3 emissions",
-        "Restored regex-stripped Scope 1-3 digits from GHG/LCA context",
+        "Scope [numbers unreadable]",
+        "Scope numbers were stripped; the original values cannot be verified",
     ),
     (
         re.compile(r"\bISO\s*/\s*s\b"),
-        "ISO 14040/14044 standards",
-        "Restored regex-stripped ISO 14040/14044 standard numbers",
+        "ISO [standard numbers unreadable]",
+        "ISO standard numbers were stripped; no specific standard is assumed",
     ),
     (
         re.compile(r"\baccordance with ISO\s+s\b"),
-        "accordance with ISO 14040/14044 standards",
-        "Restored regex-stripped ISO 14040/14044 standard numbers",
+        "accordance with ISO [standard numbers unreadable]",
+        "ISO standard numbers were stripped; no specific standard is assumed",
     ),
     (
         re.compile(r"\bover 2\.s\b"),
-        "over 2.5 years of experience",
-        "Restored regex-mangled years of experience ('2.s' -> '2.5 years of experience')",
+        "[experience duration unreadable]",
+        "The damaged duration 'over 2.s' does not establish an exact number of years",
     ),
     (
         re.compile(r"\bISO\s+/\s*\(LCA\)"),
-        "ISO 14040/14044 (LCA)",
-        "Restored regex-stripped ISO 14040/14044 standard numbers before (LCA)",
+        "ISO [standard numbers unreadable] (LCA)",
+        "LCA context does not establish which ISO standards were listed",
     ),
     (
         re.compile(r"\bISO\s+/-\s*compliant\b"),
-        "ISO 14040/14044-compliant",
-        "Restored regex-stripped ISO 14040/14044 numbers in compliance modifier",
+        "ISO [standard numbers unreadable]-compliant",
+        "ISO standard numbers were stripped; no specific standard is assumed",
     ),
     (
         re.compile(r"\bISO\s+/\s*(?=[,\n]|in trade-offs|$)"),
-        "ISO 14040/14044",
-        "Restored regex-stripped ISO 14040/14044 standard numbers",
+        "ISO [standard numbers unreadable]",
+        "ISO standard numbers were stripped; no specific standard is assumed",
     ),
     (
         re.compile(r"\bISO\s+/\s+LCA\b"),
-        "ISO 14040/14044 LCA",
-        "Restored regex-stripped ISO 14040/14044 numbers in heading",
+        "ISO [standard numbers unreadable] LCA",
+        "LCA context does not establish which ISO standards were listed",
     ),
     (
         re.compile(r"\bstrict\s+ISO\s+and\s+methodologies\b"),
-        "strict ISO 14040 and 14051 methodologies",
-        "Restored regex-stripped ISO LCA/MFCA standard numbers",
+        "strict ISO [standard number unreadable] and [methodology unreadable] methodologies",
+        "The standard and second methodology are missing from the source",
     ),
     (
         re.compile(r"\bEN\s+\+A2,\s*ISO\s*,\s*and\s*ISO\s*\."),
-        "EN 15804+A2, ISO 14040, and ISO 14025.",
-        "Restored regex-stripped EN 15804+A2 and ISO EPD/LCA standard numbers",
+        "EN [standard number unreadable]+A2, ISO [standard number unreadable], and ISO [standard number unreadable].",
+        "Standard numbers were stripped; the visible amendment is preserved",
     ),
     (
         re.compile(r"\bISO\s*:2006,\s*ISO\s*:2006\s+and\s+ISO\s*:2018\b"),
-        "ISO 14040:2006, ISO 14044:2006 and ISO 14067:2018",
-        "Restored regex-stripped ISO 14040/14044/14067 numbers from certification years",
+        "ISO [standard number unreadable]:2006, ISO [standard number unreadable]:2006 and ISO [standard number unreadable]:2018",
+        "Edition years are preserved but do not identify the missing standards",
     ),
     (
         re.compile(r"\bISO\s+9001:2015,\s*ISO\s*:2015,\s*ISO\s*:2018\b"),
-        "ISO 9001:2015, ISO 14001:2015, ISO 45001:2018",
-        "Restored regex-stripped IMS standard numbers (ISO 14001:2015, ISO 45001:2018)",
+        "ISO 9001:2015, ISO [standard number unreadable]:2015, ISO [standard number unreadable]:2018",
+        "The explicit ISO 9001 reference is preserved; other standard numbers are missing",
     ),
     (
         re.compile(r"\bISO\s*:\s*2015\b"),
-        "ISO 14001:2015",
-        "Restored regex-stripped ISO 14001 standard number before :2015 (EMS)",
+        "ISO [standard number unreadable]:2015",
+        "An edition year does not identify the missing ISO standard",
     ),
     (
         re.compile(r"\bISO\s*:2026\s+EMS\b"),
-        "ISO 14001:2026 EMS",
-        "Restored regex-stripped ISO 14001 standard number before EMS",
+        "ISO [standard number unreadable]:2026 EMS",
+        "EMS context does not verify the missing standard number; the source year is preserved",
     ),
     (
         re.compile(r"Catena\s*-\s*X\s+Rulebook\s+and\s+ISO\s*\."),
-        "Catena-X Rulebook and ISO 14067 / ISO 14040.",
-        "Restored regex-stripped ISO standard number in PCF Catena-X context",
+        "Catena-X Rulebook and ISO [standard number unreadable].",
+        "Catena-X context does not verify the missing ISO standard number",
     ),
     (
         re.compile(r"\bISO\s+-\s+Managing the Carbon Footprint"),
-        "ISO 14067 - Managing the Carbon Footprint",
-        "Restored regex-stripped ISO 14067 standard number for Carbon Footprint of Products",
+        "ISO [standard number unreadable] - Managing the Carbon Footprint",
+        "The course title is preserved without guessing its ISO standard number",
     ),
     (
         re.compile(r"\bISO\s+and\s+ISO\s+verification\b"),
-        "ISO 14064-1 and ISO 14064-3 verification",
-        "Restored regex-stripped ISO 14064 GHG verification standard numbers",
+        "ISO [standard number unreadable] and ISO [standard number unreadable] verification",
+        "Verification context does not establish the missing ISO standard numbers",
     ),
     (
         re.compile(r"\bper\s+ISO\s+and\s+GHG\s+Protocol\b"),
-        "per ISO 14064 and GHG Protocol",
-        "Restored regex-stripped ISO 14064 standard number in GHG accounting context",
+        "per ISO [standard number unreadable] and GHG Protocol",
+        "GHG Protocol is explicit; the ISO standard number is missing",
     ),
     (
         re.compile(r"\bISO\s{2,}Life Cycle Assessment\b"),
-        "ISO 14040/14044 Life Cycle Assessment",
-        "Restored regex-stripped ISO 14040/14044 numbers before Life Cycle Assessment",
+        "ISO [standard numbers unreadable] Life Cycle Assessment",
+        "LCA context does not establish which ISO standards were listed",
     ),
     (
         re.compile(r"\bLead a team of s\b"),
-        "Lead a team of analysts",
-        "Restored regex-stripped noun ('analysts') after 'team of'",
+        "Lead a team of [team roles unreadable]",
+        "Team leadership is explicit; the team members' roles are missing",
     ),
     (
         re.compile(r"\bwith ry experience\b"),
-        "with industry experience",
-        "Restored truncated word ('ry' -> 'industry') from anonymizer pass",
+        "with [word unreadable] experience",
+        "The truncated word 'ry' cannot be recovered from the source",
     ),
     (
         re.compile(r"\beliminating 2,e\."),
-        "eliminating 2,000+ tCO2e.",
-        "Restored regex-mangled GHG emissions unit ('2,e' -> '2,000+ tCO2e')",
+        "eliminating [emissions figure unreadable].",
+        "The damaged figure '2,e' does not establish a quantity or unit",
     ),
     (
         re.compile(r"\bimpact assessment of s worth\b"),
-        "impact assessment of projects worth",
-        "Restored regex-stripped plural noun ('s' -> 'projects') before valuation",
+        "impact assessment of [subject unreadable] worth",
+        "The subject of the valuation is missing from the source",
     ),
     (
         re.compile(r"\bfor 40-omers\."),
-        "for 40+ customers.",
-        "Restored regex-mangled token ('40-omers' -> '40+ customers')",
+        "for [customer count unreadable].",
+        "The damaged token '40-omers' does not verify an exact customer count",
     ),
     (
         re.compile(r"—\s*S K ILLS AN D TOOLS\s+Dec 2025"),
-        "— Ankhub Technology Services   Dec 2025",
-        "Repaired misparsed section header glued as employer name ('S K ILLS AN D TOOLS')",
+        "— [employer unreadable]   Dec 2025",
+        "A skills section heading appears in the employer field; another role's employer is not assumed",
     ),
     (
         re.compile(r"(\u2014\s*[^\n]+?)\s+null\b"),
@@ -208,24 +208,24 @@ _DETERMINISTIC_REPAIRS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (
         re.compile(r"\bNet Zero uring units\b"),
-        "Net Zero transition for manufacturing units",
-        "Mangled text from parsing error in resume ('Net Zero uring units')",
+        "Net Zero [text unreadable] units",
+        "The missing words in 'Net Zero uring units' cannot be verified",
     ),
     (
         re.compile(r"\bScope cular-economy objectives\b"),
-        "Scope 1, 2, and 3 emissions and circular-economy objectives",
-        "Mangled text due to anonymizer affecting emission scope numbers",
+        "Scope [text unreadable] circular-economy objectives",
+        "The damaged phrase does not establish specific emission scopes",
     ),
     (
         re.compile(r"St\. Xavier's High School, Bhavnagar, 2016\s*-\s*2027"),
-        "St. Xavier's High School, Bhavnagar, 2016 - 2018",
-        "Implausible future graduation year 2027 for secondary school education",
+        "St. Xavier's High School, Bhavnagar, 2016 - 2027 [year needs verification]",
+        "The source lists 2027; its apparent inconsistency does not establish a replacement year",
     ),
 ]
 
 
 def apply_deterministic_repairs(raw_text: str) -> tuple[str, list[ForensicRepair]]:
-    """Apply deterministic regex repairs first so known anonymizer artifacts are 100% healed."""
+    """Clean known artifacts and mark missing facts without guessing their values."""
     healed = raw_text
     repairs: list[ForensicRepair] = []
     for pattern, replacement, reason in _DETERMINISTIC_REPAIRS:

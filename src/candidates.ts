@@ -10,12 +10,27 @@ export const roleLabels: Record<Role, string> = {
   uiux_intern: "UI/UX Design Intern",
 };
 
-export const candidateViews: { id: CandidateView; label: string }[] = [
-  { id: "lca_consultant", label: roleLabels.lca_consultant },
-  { id: "uiux_intern", label: roleLabels.uiux_intern },
-  { id: "both", label: "Mixed skills" },
-  { id: "human_review", label: "Check manually" },
-  { id: "rejected", label: "Not a fit" },
+export const candidateViews: { id: CandidateView; label: string; description: string }[] = [
+  {
+    id: "lca_consultant", label: roleLabels.lca_consultant,
+    description: "Compare resume evidence for the Life Cycle Assessment consultant role.",
+  },
+  {
+    id: "uiux_intern", label: roleLabels.uiux_intern,
+    description: "Compare design skills for the 0–1 year internship. More experienced candidates are flagged, not penalized.",
+  },
+  {
+    id: "both", label: "Cross-field profiles",
+    description: "Resumes with signals across fields, such as design and frontend development. Inclusion does not mean a fit for both hiring roles; check each score separately.",
+  },
+  {
+    id: "human_review", label: "Check manually",
+    description: "Unreadable, short, or uncertain profiles. Inspect the resume before deciding.",
+  },
+  {
+    id: "rejected", label: "Low match",
+    description: "Low scores for both roles, with insufficient evidence of their core requirements.",
+  },
 ];
 
 export function upsertCandidate(

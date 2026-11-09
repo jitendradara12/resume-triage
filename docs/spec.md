@@ -72,7 +72,7 @@ $$\text{score\_variants} = \text{jev\_subscore\_composite} \times \text{multipli
 | `1793685080327.docx` | 0-byte empty document | `neither_uncertain` | `needs_human_review: true`, `parse_status: "empty_document"` |
 | `PS` (`1793682784387`) | Axis Bank Risk Manager | `neither_uncertain` | `needs_human_review: false` (Confident Reject), score $< 35$ |
 | `BS` (`1793685080461`) | 3+ yr Founder / Lead Designer | `uiux_intern` | High score ($\ge 85$), `seniority_flag: "overqualified"` |
-| `PKG` (`1793682784369`) | IIT Dhanbad TA (0y industry) | `lca_consultant` | `seniority_flag: "underqualified"` on 4–6y band |
+| `PKG` (`1793682784369`) | IIT Dhanbad TA; 3-month environmental internship, no explicit LCA software or carbon-standard evidence | `neither_uncertain` | `seniority_flag: "underqualified"`; only 0.25y internship counts, no guessed ISO credit |
 | `APS` (`1793685080222`) | UI/UX Designer + Sustainability SaaS project | `uiux_intern` | `crossover_badges: ["Domain Crossover: Sustainability × Design"]` |
 | `RR` (`1793682784428`) | LCA Consultant building PCF software app | `lca_consultant` | `crossover_badges: ["Domain Crossover: LCA × Software Engineering"]` |
 | `KN` (`1793685080310`) | 84-word barebones education-only profile | `neither_uncertain` | `needs_human_review: true` (`"Sparse profile"`) |

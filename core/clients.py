@@ -12,7 +12,6 @@ from core.parser import apply_deterministic_repairs
 
 
 class _GeminiStage1Payload(BaseModel):
-    additional_forensic_repairs: list[ForensicRepair]
     education_summary: str
     skills_and_tools: list[str]
     key_projects_and_roles: list[str]
@@ -21,24 +20,28 @@ class _GeminiStage1Payload(BaseModel):
     uiux_evidence_bullets: list[str]
 
 
-STAGE1_SYSTEM_PROMPT = """You are a forensic resume extraction engine.
-Given a resume's text (which has already had primary regex repairs applied), extract structured metadata with 100% precision:
-1. `additional_forensic_repairs`: Any remaining regex-mangled or anonymizer-damaged tokens you spot in the text (e.g., stripped numbers, literal 'null' dates, mangled words). Leave empty if already clean.
-2. `education_summary`: Concise 1-line summary of degrees, institutions, and graduation years.
-3. `skills_and_tools`: Clean list of technical tools, software, standards, and methodologies explicitly mentioned (e.g., SimaPro, GaBi, openLCA, Ecoinvent, ISO 14040/14044, GHG Protocol, Scope 1-3, EPD, Figma, Wireframing, Prototyping, Design Systems, React).
-4. `key_projects_and_roles`: 2 to 4 concise highlights of their most relevant roles or projects.
-5. `work_spans`: Every employment, freelance, or internship role in the Experience section.
+STAGE1_SYSTEM_PROMPT = """You are a resume extraction engine.
+Extract only facts supported by the supplied text. Cleanup has already marked damaged text in square brackets.
+Never reconstruct missing numbers, standards, employers, dates, quantities, units, or words from context.
+Keep unreadable fields unknown. Do not correct an implausible year to a guessed year.
+Do not treat an unreadable standard number or emission scope as evidence of a specific standard or scope.
+An employer listed for one role does not establish the employer for another role.
+Return these structured fields:
+1. `education_summary`: Concise 1-line summary of degrees, institutions, and graduation years.
+2. `skills_and_tools`: Use the exact names of technical tools, software, standards, and methodologies explicitly present in the supplied text. Do not expand an incomplete ISO reference into a specific standard.
+3. `key_projects_and_roles`: 2 to 4 concise highlights of their most relevant roles or projects.
+4. `work_spans`: Every employment, freelance, or internship role in the Experience section.
    - Do NOT include academic degrees or classroom/personal projects as work_spans unless explicitly work/internship/freelance/TA roles.
    - `start_date`: "YYYY-MM" or "YYYY" (or null if missing/unlisted).
    - `end_date`: "YYYY-MM", "YYYY", or "Present" (use Nov 2026 as current reference date if calculating duration).
-   - `months_duration`: Integer months duration of this role (estimate reasonably if dates are only years or missing).
+   - `months_duration`: Integer months calculated from listed work dates or an explicit duration. Use 0 when neither is available; never infer a duration from damaged text.
    - `domain`: Classify strictly as:
      - `"lca_sustainability"`: LCA, ESG, GHG accounting, carbon footprinting, environmental engineering, EHS, sustainability consulting, circular economy, product compliance (RoHS/REACH).
      - `"uiux_design"`: UI/UX design, product design, interaction design, visual/graphic/web design, design engineering.
      - `"other"`: Anything else (e.g., banking risk analytics, film sound editing, general unrelated ops).
    - `is_internship`: True if title or description indicates Intern, Trainee, Teaching Assistant, or Fellowship.
-6. `lca_evidence_bullets`: Up to 3 verbatim or tightly grounded evidence bullets proving LCA / Sustainability / GHG capability (empty list if none).
-7. `uiux_evidence_bullets`: Up to 3 verbatim or tightly grounded evidence bullets proving UI/UX / Product Design capability (empty list if none).
+5. `lca_evidence_bullets`: Up to 3 verbatim quotes from the supplied text proving LCA / Sustainability / GHG capability (empty list if none).
+6. `uiux_evidence_bullets`: Up to 3 verbatim quotes from the supplied text proving UI/UX / Product Design capability (empty list if none).
 """
 
 
@@ -198,25 +201,26 @@ async def run_stage1_extraction(raw_text: str) -> Stage1Extraction:
 
         payload = await asyncio.to_thread(_call_gemini)
 
-        # Merge deterministic repairs with any additional repairs Gemini spotted
-        seen = {r.raw_fragment for r in det_repairs}
-        all_repairs = list(det_repairs)
-        for r in payload.additional_forensic_repairs:
-            if r.raw_fragment and r.raw_fragment not in seen and r.raw_fragment != r.repaired_value:
-                seen.add(r.raw_fragment)
-                all_repairs.append(r)
-                if r.raw_fragment in healed_text:
-                    healed_text = healed_text.replace(r.raw_fragment, r.repaired_value)
+        source = " ".join(healed_text.split())
+
+        def source_quotes(bullets: list[str]) -> list[str]:
+            return [
+                bullet for bullet in bullets
+                if bullet.strip() and " ".join(bullet.split()) in source
+            ]
 
         return Stage1Extraction(
             healed_text=healed_text,
-            forensic_repairs=all_repairs,
+            forensic_repairs=det_repairs,
             education_summary=payload.education_summary,
-            skills_and_tools=payload.skills_and_tools,
+            skills_and_tools=[
+                skill for skill in payload.skills_and_tools
+                if skill.strip() and " ".join(skill.split()).casefold() in source.casefold()
+            ],
             key_projects_and_roles=payload.key_projects_and_roles,
             work_spans=payload.work_spans,
-            lca_evidence_bullets=payload.lca_evidence_bullets,
-            uiux_evidence_bullets=payload.uiux_evidence_bullets,
+            lca_evidence_bullets=source_quotes(payload.lca_evidence_bullets),
+            uiux_evidence_bullets=source_quotes(payload.uiux_evidence_bullets),
         )
     except Exception:
         return _heuristic_stage1_fallback(healed_text, det_repairs)

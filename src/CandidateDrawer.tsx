@@ -13,6 +13,7 @@ import {
   crossoverLabel,
   displayName,
   formatMonth,
+  fitTier,
   requirementChecks,
   seniorityNote,
   tierLabels,
@@ -67,7 +68,8 @@ function RoleEvaluation({
   compact: boolean;
 }) {
   const evaluation = candidate.evaluations[role];
-  const tier = tierLabels[evaluation.match_tier];
+  const score = getRoleScore(candidate, role, band);
+  const tier = tierLabels[fitTier(evaluation, score)];
   const seniority = seniorityNote(candidate, role, minimumYears[band]);
   return (
     <section className={`role-evaluation ${compact ? "compact" : ""}`}>
@@ -81,7 +83,7 @@ function RoleEvaluation({
         </div>
         <div className="role-score">
           <strong className={`score ${tier.tone}`}>
-            {Math.round(getRoleScore(candidate, role, band))}
+            {Math.round(score)}
           </strong>
           <span className={`pill ${tier.tone}`}>{tier.label}</span>
         </div>
@@ -90,9 +92,9 @@ function RoleEvaluation({
         {requirementChecks(evaluation).map((check) => (
           <li key={check.key} className={check.passed ? "passed" : "failed"}>
             {check.passed ? (
-              <Check size={14} aria-label="Yes" />
+              <Check size={14} aria-hidden="true" />
             ) : (
-              <X size={14} aria-label="No" />
+              <X size={14} aria-hidden="true" />
             )}
             {check.label}
           </li>
@@ -112,8 +114,9 @@ function RoleEvaluation({
         <details className="rubric-breakdown">
           <summary>How the score adds up</summary>
           <p className="muted">
-            Each part is scored 0–100 and weighted. Missing requirements above
-            lower the total.
+            Each part is scored 0–100 and weighted. Evidence of requirements can
+            raise or lower the total. LCA scores also account for the selected
+            experience target.
           </p>
           {Object.entries(evaluation.sub_scores).map(([key, value]) => (
             <div className="rubric-score" key={key}>
@@ -207,9 +210,10 @@ export function CandidateDrawer({
               className="source-link"
               title={candidate.filename}
             >
-              <ExternalLink size={14} /> Open original resume
+              <ExternalLink size={14} /> {candidate.source_url.includes("/folder/") ? "Open source folder" : "Open original resume"}
             </a>
           )}
+          <p className="candidate-file">{candidate.filename}</p>
         </header>
         <nav className="drawer-nav" aria-label="Candidate details">
           {(["summary", "resume", "history"] as const).map((item) => (
@@ -242,13 +246,13 @@ export function CandidateDrawer({
                     : classification === "both"
                       ? "Fits both roles"
                       : classification === "neither_uncertain"
-                        ? "Not a fit for either role"
+                        ? "Low match for both roles"
                         : `Best fit: ${roleLabels[classification]}`}
                 </h3>
                 {candidate.needs_human_review && <p>{triageReason(candidate)}</p>}
                 {candidate.crossover_badges.map((badge) => (
                   <p key={badge} className="muted">
-                    Background spans {crossoverLabel(badge)}.
+                    {crossoverLabel(badge)}.
                   </p>
                 ))}
               </section>
@@ -286,15 +290,13 @@ export function CandidateDrawer({
             <>
               {candidate.parse_status !== "ok" ? (
                 <div className="notice warning" role="status">
-                  We couldn't read text from this file. Use "Open original
-                  resume" above.
+                  {triageReason(candidate)}
                 </div>
               ) : candidate.forensic_repairs.length > 0 ? (
                 <details className="repair-details">
                   <summary>
-                    We fixed {candidate.forensic_repairs.length} words that
-                    broke when the file was converted. They're highlighted
-                    below.
+                    {candidate.forensic_repairs.length} text cleanups highlighted
+                    below. Missing facts are marked unreadable, not guessed.
                   </summary>
                   <ul className="repair-list">
                     {candidate.forensic_repairs.map((repair, index) => (
@@ -320,7 +322,7 @@ export function CandidateDrawer({
               <section>
                 <dl className="value-list">
                   <div>
-                    <dt>Whole career</dt>
+                    <dt>Counted career experience</dt>
                     <dd>{candidate.total_career_years.toFixed(1)} yrs</dd>
                   </div>
                   {(["lca_consultant", "uiux_intern"] as const).map((role) => (
@@ -340,15 +342,16 @@ export function CandidateDrawer({
                   ))}
                 </dl>
                 <p className="muted">
-                  Overlapping jobs are counted once. Teaching assistant roles
-                  don't count as industry LCA experience.
+                  Overlapping jobs are counted once. Teaching assistantships
+                  are excluded from these totals. Sustainability / LCA includes
+                  adjacent environmental work.
                 </p>
               </section>
               <section>
                 {candidate.work_spans.length === 0 ? (
                   <p className="muted">
-                    No job dates found. Check the resume for projects or
-                    student work.
+                    No work history extracted. Check the resume for roles,
+                    projects, or student work.
                   </p>
                 ) : (
                   <ul className="work-history">

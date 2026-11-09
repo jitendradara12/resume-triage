@@ -5,7 +5,7 @@ Screens and ranks resumes for an LCA Consultant and a UI/UX Design Intern. The a
 ## How ranking works
 
 1. **Read and check for duplicates.** The server reads Word, PDF, and text files in memory. It hashes the text and checks the 47 baseline resumes first. Re-uploading an existing resume returns its saved result so the score never changes.
-2. **Fix broken text.** Several source resumes have words split during file conversion, like `Scope s` instead of `Scope 3`. The parser fixes these before extraction and highlights every change on the Resume tab.
+2. **Clean broken text without guessing facts.** Several source resumes have damaged text, such as `Scope s` or missing ISO numbers. The parser marks unrecoverable values as unreadable, normalizes missing-date placeholders, and highlights every change on the Resume tab. Missing digits, employers, quantities, and dates are never reconstructed from context. Evidence bullets quote the cleaned source text.
 3. **Extract with Gemini, judge with Jev, decide in Python.** Instead of asking a language model to invent a final score, the app splits extraction, judgment, and scoring. Gemini pulls work dates, skills, education, and project evidence from the resume. Then **Jev**, TypeSafe's System One decision model, answers typed questions about each role's requirements and skill levels with probabilities. Finally, `core/scoring.py` combines Jev's judgments with the experience math to calculate the 0 to 100 scores and group each candidate.
 
 ### Role weights and experience
@@ -13,23 +13,23 @@ Screens and ranks resumes for an LCA Consultant and a UI/UX Design Intern. The a
 | Role | Score breakdown | Experience rule |
 | :--- | :--- | :--- |
 | LCA Consultant | Tools and data 40%, standards 35%, project depth 25% | Instant toggle between 2 to 3 years and 4 to 6 years |
-| UI/UX Design Intern | UI craft 45%, product thinking 40%, user research 15% | No penalty for junior candidates. Flags 2+ years as overqualified |
+| UI/UX Design Intern | UI craft 45%, product thinking 40%, user research 15% | No experience penalty. Flags more than 2 years in design as overqualified |
 
 Missing a core requirement, such as LCA software or Figma, pulls the score down.
 
-The scorer merges work dates by calendar month before counting years, so overlapping jobs count once. Only jobs in the field count toward role experience, and teaching assistantships do not count as industry LCA work. For LCA, candidates below the selected experience target get a lower score. The scorer saves both the 2 to 3 year and 4 to 6 year scores up front, so switching targets in the UI is instant.
+The scorer merges work dates by calendar month before counting years, so overlapping jobs count once. Sustainability / LCA experience includes adjacent environmental work. Teaching assistantships are excluded from all experience totals. For LCA, candidates below the selected experience target get a lower score. The scorer saves both the 2 to 3 year and 4 to 6 year scores up front, so switching targets in the UI is instant; displayed fit badges follow the selected score.
 
 ### Grouping and review
 
-Each resume lands in LCA, UI/UX, Mixed skills, Check manually, or Not a fit.
+The main review groups are LCA, UI/UX, Check manually, and Low match. A candidate classified for both roles appears in both role lists.
 
 - **Check manually.** Catches unreadable files, resumes under 100 words, and borderline cases instead of rejecting them silently.
-- **Not a fit.** Requires a readable resume over 100 words that scores below 25 on both roles and misses both roles' core requirements.
-- **Mixed skills.** Shows candidates who pass both roles at 60 or above, or who have work across both fields.
+- **Low match.** Requires a readable resume of at least 100 words, sufficient model confidence, scores below 25 on both roles, and failed qualification checks for both roles.
+- **Cross-field profiles.** An overlapping view of candidates classified for both roles or flagged for topics across fields, such as design and frontend technologies. These badges can come from keyword mentions; they do not establish qualifications for a second role. Combined lists display and sort by the higher role score when sorting by score.
 
 ## Limits
 
-Scores rank evidence on the page and do not replace a portfolio review. Browser localStorage keeps uploaded evaluations across refreshes, and **Clear uploads** resets the list to the 47 baseline resumes. Scanned PDFs without a text layer go to manual review.
+Scores rank evidence on the page and do not replace a portfolio review. New uploads are processed on the server; browser localStorage keeps their evaluations across refreshes, and **Clear uploads** resets this browser's list to the 47 baseline resumes. Scanned PDFs without a text layer go to manual review.
 
 ## Run locally
 

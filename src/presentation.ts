@@ -9,9 +9,18 @@ export const tierLabels: Record<
 > = {
   strong_match: { label: "Strong fit", tone: "good" },
   potential_match: { label: "Possible fit", tone: "maybe" },
-  mismatch: { label: "Not a fit", tone: "bad" },
+  mismatch: { label: "Low match", tone: "bad" },
   uncertain: { label: "Unclear", tone: "neutral" },
 };
+
+export function fitTier(evaluation: RoleMatchResult, score: number) {
+  const tier = evaluation.match_tier;
+  if (evaluation.role_id !== "lca_consultant" || tier === "uncertain" || tier === "mismatch")
+    return tier;
+  // The stricter experience target can lower a saved fit tier, never raise it.
+  if (score < 38) return "mismatch";
+  return tier === "strong_match" && score < 65 ? "potential_match" : tier;
+}
 
 export const domainLabels: Record<Role, string> = {
   lca_consultant: "sustainability / LCA",
@@ -34,29 +43,29 @@ export const criterionLabels: Record<string, string> = {
  */
 const checks: Record<string, { pass: string; fail: string; negative?: boolean }> = {
   has_lca_software: {
-    pass: "Uses LCA software (SimaPro, GaBi, openLCA…)",
-    fail: "No LCA software found",
+    pass: "Evidence of LCA software or database use",
+    fail: "Limited evidence of LCA software or database use",
   },
   has_ghg_standards: {
-    pass: "Knows carbon & ISO standards",
-    fail: "No carbon or ISO standards found",
+    pass: "Evidence of carbon or ISO methods",
+    fail: "Limited evidence of carbon or ISO methods",
   },
   is_unrelated_domain: {
     pass: "Background fits the field",
-    fail: "Background is mostly another field",
+    fail: "Background may be mostly another field",
     negative: true,
   },
   has_figma_wireframing: {
-    pass: "Uses Figma / wireframing",
-    fail: "No Figma or wireframing found",
+    pass: "Evidence of UI tools, wireframing, or prototyping",
+    fail: "Limited evidence of UI tools, wireframing, or prototyping",
   },
   has_portfolio_projects: {
-    pass: "Has design projects to show",
-    fail: "No design projects found",
+    pass: "Evidence of digital product design projects",
+    fail: "Limited evidence of digital product design projects",
   },
   is_pure_graphic_or_unrelated: {
     pass: "Product / UX focus",
-    fail: "Mostly graphic design or another field",
+    fail: "May focus on graphic design or another field",
     negative: true,
   },
 };
@@ -74,17 +83,25 @@ export function requirementChecks(evaluation: RoleMatchResult) {
 }
 
 export function crossoverLabel(badge: string) {
-  return badge.replace(/^Domain Crossover:\s*/, "").replaceAll(" × ", " + ");
+  const labels: Record<string, string> = {
+    "Domain Crossover: Sustainability × Design": "Also mentions sustainability",
+    "Domain Crossover: Design × Frontend Engineering": "Also mentions frontend technologies",
+    "Domain Crossover: LCA × Software Engineering": "Also mentions software",
+    "Domain Crossover: LCA × UI/UX": "Some UI/UX evidence",
+  };
+  return labels[badge] ?? badge.replace(/^Domain Crossover:\s*/, "").replaceAll(" × ", " + ");
 }
 
-/** Why a candidate sits in "Check manually" or "Not a fit", without internal thresholds. */
+/** Explain the review queues without treating a score as a hiring decision. */
 export function triageReason(candidate: EvaluatedCandidate) {
   if (candidate.parse_status !== "ok")
-    return "We couldn't read this file. Open the original resume to check it.";
+    return candidate.source_url
+      ? "We couldn't extract text from this file. Inspect the source resume."
+      : "We couldn't extract text from this file. Try a text-based PDF, DOCX, or TXT file.";
   if (candidate.needs_human_review)
     return candidate.word_count < 100
-      ? "Very short resume — not enough detail to judge."
-      : "The match wasn't clear-cut. Worth a quick manual look.";
+      ? "Very short resume. Not enough detail to judge."
+      : "The match is uncertain. Review the resume before deciding.";
   const misses = (["lca_consultant", "uiux_intern"] as const).flatMap(
     (role) =>
       requirementChecks(candidate.evaluations[role])
@@ -92,7 +109,7 @@ export function triageReason(candidate: EvaluatedCandidate) {
         .map((check) => check.label)
         .slice(0, 1),
   );
-  return `Doesn't match either role. ${misses.join("; ")}.`;
+  return ["Low match for both roles.", misses.length ? `${misses.join("; ")}.` : ""].filter(Boolean).join(" ");
 }
 
 export function seniorityNote(
@@ -102,7 +119,12 @@ export function seniorityNote(
 ) {
   const evaluation = candidate.evaluations[role];
   if (evaluation.seniority_flag === "overqualified")
-    return { label: "More senior than an intern", tone: "maybe" as Tone };
+    return {
+      label: role === "uiux_intern"
+        ? "Above the internship experience target"
+        : "Above the experience target",
+      tone: "maybe" as Tone,
+    };
   if (
     role === "lca_consultant" &&
     evaluation.match_tier !== "mismatch" &&
@@ -115,7 +137,7 @@ export function seniorityNote(
 const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
 export function formatMonth(value: string | null) {
-  if (!value) return "?";
+  if (!value) return "Date not listed";
   const match = /^(\d{4})-(\d{2})/.exec(value);
   return match ? `${months[Number(match[2]) - 1]} ${match[1]}` : value;
 }

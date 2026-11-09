@@ -110,8 +110,8 @@ export function App() {
           <ul className="methodology-content">
             <li>
               Every resume is read, broken words from file conversion are
-              fixed (each fix is shown on the Resume tab), and it gets a 0–100
-              score for each role.
+              cleaned without guessing missing facts (each change is shown on the
+              Resume tab), and it gets a 0–100 score for each role.
             </li>
             <li>
               <strong>LCA Consultant:</strong> LCA tools &amp; data 40%,
@@ -120,13 +120,13 @@ export function App() {
             </li>
             <li>
               <strong>UI/UX Intern:</strong> UI craft 45%, product thinking 40%,
-              user research 15%. No penalty for experience, but anyone with
-              2+ years is marked "More senior than an intern".
+              user research 15%. No penalty for experience, but more than
+              2 years in design is marked "Above the internship experience target".
             </li>
             <li>
-              Missing a key requirement (e.g. no LCA software, no Figma) lowers
-              the score. Only jobs in the field count as experience, and
-              overlapping jobs count once.
+              Evidence of role requirements can raise or lower the score.
+              LCA experience includes sustainability work; overlapping jobs
+              count once. Teaching assistantships are excluded from counted experience.
             </li>
             <li>
               Unreadable or very short resumes go to "Check manually" instead
@@ -135,8 +135,14 @@ export function App() {
             </li>
             <li>
               Upload a PDF, Word, or text resume to see where it ranks. Uploads
-              stay in this browser; re-uploading an existing resume shows its
-              original result.
+              are processed on the server and their results are saved in this
+              browser. Re-uploading a baseline resume reuses its saved evaluation.
+            </li>
+            <li>
+              Cross-field profiles also appear in their main role list. Their
+              badges identify topics in the resume, not qualifications for a
+              second role. On combined lists, the larger score determines the
+              displayed role and score order.
             </li>
           </ul>
         </details>
@@ -192,19 +198,7 @@ export function App() {
           <div>
             <h2>{candidateViews.find((item) => item.id === view)?.label}</h2>
             <p className="muted">
-              {
-                {
-                  lca_consultant:
-                    "Ranked by fit for the Life Cycle Assessment consultant role.",
-                  uiux_intern:
-                    "Ranked by fit for the 0–1 year design internship.",
-                  both: "People whose background spans two fields. Worth a look for either role.",
-                  human_review:
-                    "The system couldn't judge these. Open each one and decide.",
-                  rejected:
-                    "No sign of the core skills for either role.",
-                }[view]
-              }
+              {candidateViews.find((item) => item.id === view)?.description}
             </p>
           </div>
           {view === "lca_consultant" && (
@@ -217,7 +211,7 @@ export function App() {
                 checked={hideOverqualified}
                 onChange={(event) => setHideOverqualified(event.target.checked)}
               />{" "}
-              Hide candidates with 2+ years of design experience
+              Hide candidates with more than 2 years of design experience
             </label>
           )}
         </div>
@@ -239,8 +233,8 @@ export function App() {
               onChange={(event) => setSort(event.target.value as SortField)}
             >
               <option value="score">Score</option>
-              <option value="relevant_exp">Relevant experience</option>
-              <option value="total_exp">Total experience</option>
+              <option value="relevant_exp">Experience in the displayed field</option>
+              <option value="total_exp">Counted career experience</option>
             </select>
           </label>
         </div>
@@ -254,6 +248,7 @@ export function App() {
           view={view}
           band={band}
           onSelect={setSelected}
+          filtered={Boolean(query.trim()) || (view === "uiux_intern" && hideOverqualified)}
         />
       </main>
       {selected && (
