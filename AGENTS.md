@@ -9,7 +9,7 @@ Build and deploy a resume screening and ranking prototype for two roles:
 
 Reviewers evaluate 47 baseline resumes from Zoho WorkDrive plus live uploads on a free Vercel deployment.
 
-> Always build code cleanly, modularly, and with proper architecture and separation of concerns. Never simply bolt on a feature because I asked for it. If you can’t find an easy way to build it naturally, and you'd recommend a refactor to make the whole thing cleanly, stop your work ahead of time and say so.
+> Always build code cleanly, modularly, and with proper architecture and separation of concerns. Never simply bolt on a feature because I asked for it. If you can’t find an easy way to build it naturally, and you'd recommend a refactor to make the whole thing cleanly, stop your work ahead of time and say so. also, no need to overfit this or any other advice: the work or decision must be real and reasonable.
 
 ---
 

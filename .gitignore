@@ -1,8 +1,10 @@
 resumes/*.docx
 !resumes/README.md
 .env
+.gemini
 node_modules/
 dist/
+*.tsbuildinfo
 .venv/
 __pycache__/
 *.pyc

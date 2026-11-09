@@ -44,12 +44,15 @@ export interface EvaluatedCandidate {
   crossover_badges: string[];
   total_career_years: number;
   relevant_years_by_domain: Record<string, number>;
-  primary_classification: "lca_consultant" | "uiux_intern" | "both" | "neither_uncertain";
+  primary_classification:
+    | "lca_consultant"
+    | "uiux_intern"
+    | "both"
+    | "neither_uncertain";
   needs_human_review: boolean;
   classification_reason: string;
   forensic_repairs: ForensicRepair[];
   evaluations: Record<"lca_consultant" | "uiux_intern", RoleMatchResult>;
   work_spans: WorkSpan[];
   matched_baseline?: boolean;
-  is_live_upload?: boolean;
 }

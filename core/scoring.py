@@ -314,12 +314,9 @@ def compute_lca_match(
     score_jd = round(min(100.0, calibrated_base * mult_jd), 1)
     score_prompt = round(min(100.0, calibrated_base * mult_prompt), 1)
 
-    # Default overall_score uses JD target (2-3y) or Prompt target (4-6y); store both in score_variants
-    # Let's make overall_score the JD 2-3y score (or prompt_4_6y — wait: let's check spec!)
-    # Spec says: precompute jd_2_3y and prompt_4_6y so reviewers can switch experience targets instantly.
+    # Classification uses the JD score; the UI can rank by either target.
     overall = score_jd
 
-    # Seniority flag on the 4-6y prompt band (per benchmark: PKG -> underqualified on 4-6y band)
     if y < 2.0:
         seniority_flag: Literal["underqualified", "target_band", "overqualified"] = "underqualified"
     elif y > 7.5:

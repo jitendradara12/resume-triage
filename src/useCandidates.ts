@@ -1,0 +1,86 @@
+import { useRef, useState } from "react";
+import baselineData from "../data/baseline_candidates.json";
+import type { EvaluatedCandidate } from "./types";
+
+interface EvaluationResponse {
+  candidate: EvaluatedCandidate;
+  matched_baseline: boolean;
+}
+
+export function useCandidates() {
+  const [candidates, setCandidates] = useState<EvaluatedCandidate[]>(
+    () => baselineData as EvaluatedCandidate[],
+  );
+  const [isUploading, setIsUploading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const uploadInProgress = useRef(false);
+
+  async function upload(file: File): Promise<EvaluatedCandidate | null> {
+    if (uploadInProgress.current) return null;
+    uploadInProgress.current = true;
+    setIsUploading(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/evaluate", {
+        method: "POST",
+        body: form,
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        let message = `Could not evaluate the resume (${response.status}). Please try again.`;
+        try {
+          const detail = JSON.parse(body).detail;
+          if (typeof detail === "string") message = detail;
+        } catch {
+          // Proxies can return HTML instead of the API's JSON error response.
+        }
+        throw new Error(message);
+      }
+      const data: EvaluationResponse = await response.json();
+      const candidate = {
+        ...data.candidate,
+        matched_baseline: data.matched_baseline,
+      };
+      setCandidates((previous) => {
+        const index = previous.findIndex(
+          (item) =>
+            item.content_hash === candidate.content_hash ||
+            item.candidate_id === candidate.candidate_id,
+        );
+        return index < 0
+          ? [...previous, candidate]
+          : previous.map((item, i) => (i === index ? candidate : item));
+      });
+      setNotice(
+        data.matched_baseline
+          ? "Matched Baseline Candidate. The original evaluation has been kept."
+          : "Resume evaluated and added to the rankings for this session.",
+      );
+      return candidate;
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not upload the resume. Please try again.",
+      );
+      return null;
+    } finally {
+      uploadInProgress.current = false;
+      setIsUploading(false);
+    }
+  }
+
+  return {
+    candidates,
+    upload,
+    isUploading,
+    notice,
+    error,
+    clearNotice: () => setNotice(null),
+    clearError: () => setError(null),
+  };
+}

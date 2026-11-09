@@ -53,11 +53,6 @@ async def run_batch(concurrency: int = 5) -> list[EvaluatedCandidate]:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(serialized, f, indent=2, ensure_ascii=False)
 
-    pub_path = Path("public/data/baseline_candidates.json")
-    if pub_path.parent.exists():
-        with open(pub_path, "w", encoding="utf-8") as f:
-            json.dump(serialized, f, indent=2, ensure_ascii=False)
-
     print(f"\nSaved {len(results)} evaluated candidates to {out_path}")
     return list(results)
 
