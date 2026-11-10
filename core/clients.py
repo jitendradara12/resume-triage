@@ -266,7 +266,10 @@ async def evaluate_decisions(
             sdk_questions = {}
             for q_id, q_spec in questions.items():
                 if q_spec["type"] == "noul":
-                    sdk_questions[q_id] = Noul(instructions=q_spec["instructions"])
+                    noul_kwargs: dict[str, Any] = {"instructions": q_spec["instructions"]}
+                    if "criteria" in q_spec:
+                        noul_kwargs["criteria"] = q_spec["criteria"]
+                    sdk_questions[q_id] = Noul(**noul_kwargs)
                 elif q_spec["type"] == "score":
                     sdk_questions[q_id] = Score(instructions=q_spec["instructions"], criteria=q_spec["criteria"])
             async with AsyncTypeSafeClient(api_key=api_key) as ts_client:

@@ -121,44 +121,56 @@ def compute_experience_years(work_spans: list[WorkSpan]) -> tuple[float, dict[st
 LCA_QUESTIONS: dict[str, dict[str, Any]] = {
     "has_lca_software": {
         "type": "noul",
-        "instructions": "Does the candidate have hands-on experience with dedicated LCA software or databases such as SimaPro, GaBi (Sphera), openLCA, Umberto, or Ecoinvent?",
+        "instructions": "Has the candidate used dedicated life cycle assessment (LCA) modeling software or life cycle inventory (LCI) databases to model environmental impacts?",
+        "criteria": {
+            "true": "The candidate has hands-on experience with specialized LCA tools (such as SimaPro, GaBi/Sphera, openLCA, or Umberto) or LCI databases (such as Ecoinvent, Agri-footprint, or GaBi databases) in `extracted_skills_and_tools`, `lca_evidence_quotes`, or `resume_text`.",
+            "false": "The candidate only used generic spreadsheets (Excel), business intelligence tools (PowerBI/SQL), CAD/CAM software, air dispersion tools (AERMOD), laboratory instruments, chemical compliance portals (IMDS/RoHS/REACH), or has no environmental software experience.",
+        },
     },
     "has_ghg_standards": {
         "type": "noul",
-        "instructions": "Does the candidate demonstrate direct knowledge or execution of ISO 14040/14044, ISO 14064, ISO 14067, GHG Protocol (Scope 1, 2, 3), EPDs, or PCFs?",
+        "instructions": "Has the candidate executed life cycle assessments, product carbon footprints, or greenhouse gas emission inventories under ISO or GHG Protocol standards?",
+        "criteria": {
+            "true": "The candidate's work history, projects, or skills show direct execution of ISO 14040/14044 LCAs, ISO 14064/14067 carbon accounting, GHG Protocol (Scope 1, 2, or 3) emission inventories, Environmental Product Declarations (EPDs / EN 15804 / PCR), or Product Carbon Footprints (PCFs).",
+            "false": "The candidate only worked on corporate ESG investment ratings and financial disclosures (GRI, SASB, TCFD, CSRD, EU Taxonomy) without Scope 1-3 emission inventories or LCAs, or worked on hazardous material compliance (RoHS/REACH/WEEE), cosmetic regulations, general plant EHS/stack monitoring, or academic solid-waste lab testing.",
+        },
     },
     "is_unrelated_domain": {
         "type": "noul",
-        "instructions": "Is this candidate completely unrelated to environmental sustainability, LCA, ESG, or climate (for example: pure UI/UX designer, graphic designer, or banking risk manager)?",
+        "instructions": "Is this candidate's background outside environmental sustainability, life cycle assessment, climate, or ESG?",
+        "criteria": {
+            "true": "The candidate works primarily in an unrelated field such as banking credit risk, financial analytics, UI/UX or graphic design, pure software engineering without sustainability context, or cosmetic/chemical regulatory affairs without LCA or GHG work.",
+            "false": "The candidate has professional or academic work in LCA, carbon accounting, ESG advisory, environmental engineering, or corporate sustainability.",
+        },
     },
     "software_and_data_mastery": {
         "type": "score",
-        "instructions": "Rate the candidate's proficiency with LCA modeling software (SimaPro, GaBi, openLCA) and inventory databases (Ecoinvent, Agri-footprint, BAFU).",
+        "instructions": "What is the candidate's level of proficiency with LCA modeling software, LCI dataset compilation, and environmental impact databases?",
         "criteria": [
-            "No LCA software or environmental database experience",
-            "Basic academic exposure, coursework, or general Excel-only environmental data tracking",
-            "Applied hands-on modeling in openLCA, SimaPro, or GaBi with Ecoinvent or GHG emission factor libraries",
-            "Expert industry LCA modeler building complex cradle-to-grave/gate product systems, EPDs, or multi-client LCA models",
+            "The candidate has no experience with LCA software (SimaPro, GaBi, openLCA), LCI datasets, or environmental modeling tools (for example: ESG ratings platforms, RoHS/IMDS portals, or unrelated software).",
+            "The candidate has only academic coursework, environmental lab/air monitoring, or spreadsheet-only (Excel) environmental data tracking without dedicated LCA software.",
+            "The candidate has applied SimaPro, GaBi, openLCA, or Ecoinvent on projects to build life cycle inventory models or calculate carbon and environmental footprints.",
+            "The candidate is an experienced industry LCA modeler who has independently built commercial cradle-to-gate or cradle-to-grave LCI models in SimaPro, GaBi, or openLCA, validated operational/supply-chain datasets, and delivered multiple commercial LCA or EPD studies.",
         ],
     },
     "methodology_and_standards": {
         "type": "score",
-        "instructions": "Rate the candidate's mastery of LCA, GHG, and ESG methodological standards (ISO 14040/44, ISO 14064/67, EN 15804, GHG Protocol Scope 1-3, CSRD/CBAM, EPDs, PCFs).",
+        "instructions": "What is the candidate's depth of practice with LCA, EPD, and GHG accounting standards? (Do not credit unreadable placeholder brackets like `ISO [standard numbers unreadable]` as a specific ISO number unless explicitly named elsewhere.)",
         "criteria": [
-            "No sustainability, environmental, or LCA standards mentioned",
-            "Superficial keyword mentions or general EHS/regulatory compliance without carbon/LCA standards",
-            "Solid execution of GHG accounting (Scope 1-3), ISO 14064/14040 compliance, or corporate ESG disclosures",
-            "Deep methodological authority authoring ISO 14040/44 LCAs, verified EPDs (EN 15804/PCR), PCFs, or global Scope 3 supply-chain models",
+            "The candidate shows no work with LCA, carbon accounting, or sustainability standards.",
+            "The candidate works in general EHS safety, air pollution/stack monitoring (AERMOD), chemical material compliance (RoHS/REACH), or secondary ESG ratings/disclosure screening (GRI/SASB/EU Taxonomy) without executing LCA or GHG Protocol Scope 1-3 emissions inventories.",
+            "The candidate has executed LCA studies, GHG Protocol (Scope 1, 2, or 3) emissions inventories, or corporate carbon footprint disclosures, or has unverified/redacted ISO placeholders without explicit EPD/PCF authorship.",
+            "The candidate has explicitly authored or verified ISO 14040/14044 or ISO 14064/14067 studies, Environmental Product Declarations (EPDs / EN 15804 / PCR), Product Carbon Footprints (PCFs), or global Scope 3 supply-chain models.",
         ],
     },
     "project_depth": {
         "type": "score",
-        "instructions": "Rate the depth and real-world impact of the candidate's LCA, decarbonization, or sustainability projects.",
+        "instructions": "What is the real-world depth of the candidate's delivered LCA, LCI data modeling, or carbon footprinting projects?",
         "criteria": [
-            "No relevant environmental or sustainability projects",
-            "Academic lab studies, university coursework, or general plant EHS/wastewater monitoring only",
-            "Commercial ESG advisory, corporate carbon footprint inventories, or product compliance projects",
-            "Lead LCA practitioner delivering commercial cradle-to-grave LCAs, 10+ published EPDs, or industrial decarbonization roadmaps",
+            "The candidate has no environmental, sustainability, or LCA projects.",
+            "The candidate has only university coursework, academic lab assistantships, plant EHS/wastewater/air monitoring, chemical compliance, or desktop ESG ratings QA without hands-on footprinting projects.",
+            "The candidate has delivered commercial ESG advisory, corporate carbon footprint inventories, or environmental impact studies.",
+            "The candidate has independently led or delivered multiple end-to-end commercial LCA studies, compiled plant and logistics LCI datasets across products, published EPDs, or built industrial decarbonization roadmaps.",
         ],
     },
 }
@@ -166,47 +178,88 @@ LCA_QUESTIONS: dict[str, dict[str, Any]] = {
 UIUX_QUESTIONS: dict[str, dict[str, Any]] = {
     "has_figma_wireframing": {
         "type": "noul",
-        "instructions": "Does the candidate have practical experience with Figma, wireframing, interactive prototyping, or UI design tools?",
+        "instructions": "Has the candidate used Figma or dedicated interface design tools to create wireframes, interactive prototypes, or digital UI screens?",
+        "criteria": {
+            "true": "The candidate has hands-on experience designing digital user interfaces, wireframes, interactive prototypes, or component libraries in Figma (or equivalent UI tools) as shown in `extracted_skills_and_tools`, `uiux_evidence_quotes`, or `resume_text`.",
+            "false": "The candidate has no UI design tool experience, works in an unrelated field (such as LCA or banking), or only uses non-interface tools.",
+        },
     },
     "has_portfolio_projects": {
         "type": "noul",
-        "instructions": "Does the candidate describe concrete digital product design, mobile/web app UI/UX projects, or UX case studies?",
+        "instructions": "Does the candidate describe concrete digital product design projects, web/mobile app interfaces, or UX case studies?",
+        "criteria": {
+            "true": "The candidate documents specific web, mobile, SaaS, or digital product design projects, screen designs, user flows, or UX case studies in `key_projects_and_roles`, `uiux_evidence_quotes`, or `work_history`.",
+            "false": "The candidate lists no digital product or interface design projects (for example: an 84-word barebones resume with only education and skill keywords, or a non-design resume).",
+        },
     },
     "is_pure_graphic_or_unrelated": {
         "type": "noul",
-        "instructions": "Is the candidate either completely outside design (e.g. LCA/environmental engineer, banker) OR focused almost exclusively on static graphic design/print/social media creatives rather than interactive digital product UX?",
+        "instructions": "Is the candidate either outside digital product design OR focused only on static graphic/print/social media creatives without interactive UI/UX work?",
+        "criteria": {
+            "true": "The candidate works in a non-design domain (such as environmental engineering, LCA consulting, or banking risk) OR only creates static graphic design assets (print flyers, logos, social media posts) with no web/app UI/UX design.",
+            "false": "The candidate designs digital user interfaces, web or mobile application screens, interactive prototypes, or UX workflows.",
+        },
     },
     "ui_craft_and_systems": {
         "type": "score",
-        "instructions": "Rate the candidate's UI visual craft, Figma proficiency, component library architecture, and design systems capability.",
+        "instructions": "What is the candidate's level of digital UI visual craft, Figma proficiency, component library architecture, and design systems capability?",
         "criteria": [
-            "No UI design or Figma skills",
-            "Basic graphic layouts, Canva/social media assets, or beginner wireframes without component systems",
-            "Competent digital UI craft in Figma with responsive web/mobile screens, auto-layout, and interactive prototypes",
-            "Advanced design systems, reusable multi-brand token/component libraries, 3D/motion/micro-interactions, or shipped production interfaces",
+            "No UI design or Figma experience.",
+            "Basic graphic layouts, Canva/social media assets, or beginner wireframes without component systems.",
+            "Competent digital UI craft in Figma with responsive web or mobile screens, auto-layout, and interactive prototypes.",
+            "Advanced design systems, reusable multi-brand token/component libraries, 3D/motion/micro-interactions, or shipped production interfaces.",
         ],
     },
     "ux_research_methods": {
         "type": "score",
-        "instructions": "Rate the candidate's UX research methodology, user testing, information architecture, and accessibility (WCAG) practices.",
+        "instructions": "What is the candidate's practice of UX research methodology, user interviews, usability testing, information architecture, and accessibility?",
         "criteria": [
-            "No user research or UX methodology mentioned",
-            "Basic mentions of personas or wireframes without structured research or testing",
-            "Applied UX research including user flows, heuristic UX audits, information architecture, and usability testing",
-            "Rigorous multi-method UX research, user interviews across demographics, accessibility (WCAG) compliance, and iterative validation",
+            "No user research or UX methodology mentioned.",
+            "Basic mentions of personas or wireframes without structured research or usability testing.",
+            "Applied UX research including user flows, heuristic UX audits, information architecture, workflow friction analysis, or usability testing.",
+            "Rigorous multi-method UX research, direct user interviews, accessibility (WCAG) compliance, or iterative validation driving measurable UX improvements.",
         ],
     },
     "product_thinking": {
         "type": "score",
-        "instructions": "Rate the candidate's end-to-end digital product thinking, complex workflow problem-solving, and developer handoff/collaboration.",
+        "instructions": "What is the depth of the candidate's end-to-end digital product thinking, workflow problem-solving, and cross-functional delivery?",
         "criteria": [
-            "No digital product design experience",
-            "Surface-level visual screens or static marketing graphics without product flow depth",
-            "Clear end-to-end user journeys, B2B/consumer app case studies, and cross-functional developer collaboration",
-            "Strong product ownership shipping real SaaS/fintech/AI products, measurable conversion/retention impact, or design engineering",
+            "No digital product design experience.",
+            "Surface-level visual screens or static marketing graphics without product flow depth.",
+            "Clear end-to-end user journeys, B2B/consumer app case studies, and cross-functional developer collaboration.",
+            "Strong product ownership shipping real SaaS/fintech/AI/consumer products, measurable user/conversion/efficiency impact, or design engineering.",
         ],
     },
 }
+
+DECISION_QUESTIONS: dict[str, dict[str, Any]] = {
+    **{f"lca__{k}": v for k, v in LCA_QUESTIONS.items()},
+    **{f"uiux__{k}": v for k, v in UIUX_QUESTIONS.items()},
+}
+
+
+def build_decision_state(stage1: Stage1Extraction) -> dict[str, Any]:
+    """Build structured, non-duplicated System 1 decision state passing the TypeSafe human test."""
+    return {
+        "education_summary": stage1.education_summary,
+        "extracted_skills_and_tools": stage1.skills_and_tools,
+        "key_projects_and_roles": stage1.key_projects_and_roles,
+        "work_history": [
+            {
+                "title": span.title,
+                "organization": span.organization,
+                "start_date": span.start_date,
+                "end_date": span.end_date,
+                "months_duration": span.months_duration,
+                "domain": span.domain,
+                "is_internship": span.is_internship,
+            }
+            for span in stage1.work_spans
+        ],
+        "lca_evidence_quotes": stage1.lca_evidence_bullets,
+        "uiux_evidence_quotes": stage1.uiux_evidence_bullets,
+        "resume_text": stage1.healed_text,
+    }
 
 
 def _score_to_100(ans: dict[str, Any] | None, max_level: int = 3) -> float:
@@ -291,7 +344,7 @@ def compute_lca_match(
     elif not hard_gates_passed:
         gate_factor = 0.55
     elif has_sw >= 0.75 and has_std >= 0.75:
-        gate_factor = 1.05
+        gate_factor = 1.00
     else:
         gate_factor = 0.92 + 0.08 * max(has_sw, has_std)
 
@@ -398,10 +451,8 @@ def compute_uiux_match(
         gate_factor = 0.12
     elif not hard_gates_passed:
         gate_factor = 0.65 if has_figma >= 0.50 else 0.30
-    elif has_figma >= 0.90 and has_port >= 0.90 and is_pure_gfx < 0.10:
-        gate_factor = 1.15
     elif has_figma >= 0.80 and has_port >= 0.80:
-        gate_factor = 1.08
+        gate_factor = 1.00
     else:
         gate_factor = 0.95 + 0.05 * min(has_figma, has_port)
 

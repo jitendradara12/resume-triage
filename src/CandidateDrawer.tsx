@@ -195,6 +195,9 @@ export function CandidateDrawer({
           <div className="section-heading">
             <div className="drawer-identity">
               <h2 id={titleId}>{displayName(candidate)}</h2>
+              <span className="file-path-text" title={`File: ${candidate.filename}`}>
+                {candidate.filename}
+              </span>
               {candidate.matched_baseline && (
                 <span className="chip chip-info">Baseline match</span>
               )}

@@ -1,11 +1,17 @@
-import asyncio
 import re
 import httpx
 
 from core.clients import evaluate_decisions, run_stage1_extraction
 from core.parser import ParsedDocument, compute_content_hash, parse_document_bytes
 from core.schemas import EvaluatedCandidate
-from core.scoring import LCA_QUESTIONS, UIUX_QUESTIONS, aggregate_candidate, heuristic_decision_fallback
+from core.scoring import (
+    DECISION_QUESTIONS,
+    LCA_QUESTIONS,
+    UIUX_QUESTIONS,
+    aggregate_candidate,
+    build_decision_state,
+    heuristic_decision_fallback,
+)
 
 ZOHO_FOLDER_URL = "https://workdrive.zohoexternal.in/folder/nyche10b5dccdb33743dfa46604e3aa2a2e2b"
 
@@ -40,22 +46,13 @@ async def evaluate_resume_bytes(
     # Stage 1: System 2 (Gemini Flash Lite + deterministic forensic repairs)
     stage1 = await run_stage1_extraction(raw_text)
 
-    # Stage 2: System 1 (Decision Engine: LCA + UI/UX concurrently via asyncio.gather)
-    state = {
-        "resume_text": stage1.healed_text,
-        "text": stage1.healed_text,
-        "profile": stage1.education_summary,
-    }
-    lca_ans, uiux_ans = await asyncio.gather(
-        evaluate_decisions(state=state, questions=LCA_QUESTIONS, http_client=http_client),
-        evaluate_decisions(state=state, questions=UIUX_QUESTIONS, http_client=http_client),
+    # Stage 2: System 1 (Decision Engine: bundled LCA + UI/UX judgments over structured state)
+    state = build_decision_state(stage1)
+    combined_answers = await evaluate_decisions(
+        state=state,
+        questions=DECISION_QUESTIONS,
+        http_client=http_client,
     )
-
-    combined_answers = {}
-    for k, v in lca_ans.items():
-        combined_answers[f"lca__{k}"] = v
-    for k, v in uiux_ans.items():
-        combined_answers[f"uiux__{k}"] = v
 
     if not combined_answers:
         combined_answers = heuristic_decision_fallback(stage1)

@@ -14,7 +14,13 @@ from api.index import app
 from core.clients import run_stage1_extraction
 from core.parser import apply_deterministic_repairs, compute_content_hash, parse_document_bytes
 from core.schemas import EvaluatedCandidate, Stage1Extraction, WorkSpan
-from core.scoring import aggregate_candidate, compute_experience_years, compute_lca_match
+from core.scoring import (
+    DECISION_QUESTIONS,
+    aggregate_candidate,
+    build_decision_state,
+    compute_experience_years,
+    compute_lca_match,
+)
 
 BASELINE_PATH = ROOT / "data" / "baseline_candidates.json"
 
@@ -395,6 +401,46 @@ class TestBenchmarkSuite(unittest.TestCase):
                 )
                 self.assertEqual(result.rationale_headline, saved.rationale_headline)
                 self.assertNotIn("SimaPro/GaBi/openLCA", result.rationale_headline)
+
+    def test_22_typesafe_system1_state_and_question_contracts(self):
+        self.assertEqual(len(DECISION_QUESTIONS), 12)
+        for q_id, q_spec in DECISION_QUESTIONS.items():
+            if q_spec["type"] == "noul":
+                self.assertIn("criteria", q_spec, f"Missing situational criteria on noul {q_id}")
+                self.assertIn("true", q_spec["criteria"])
+                self.assertIn("false", q_spec["criteria"])
+            else:
+                self.assertEqual(len(q_spec["criteria"]), 4)
+
+        hm = self.candidates["anonymized_HM_1793682784257.docx"]
+        stage1 = Stage1Extraction(
+            healed_text=hm.healed_text,
+            forensic_repairs=hm.forensic_repairs,
+            education_summary=hm.education_summary,
+            skills_and_tools=hm.skills_and_tools,
+            key_projects_and_roles=hm.key_projects_and_roles,
+            work_spans=hm.work_spans,
+            lca_evidence_bullets=hm.evaluations["lca_consultant"].evidence_bullets,
+            uiux_evidence_bullets=hm.evaluations["uiux_intern"].evidence_bullets,
+        )
+        state = build_decision_state(stage1)
+        self.assertEqual(
+            set(state.keys()),
+            {
+                "education_summary",
+                "extracted_skills_and_tools",
+                "key_projects_and_roles",
+                "work_history",
+                "lca_evidence_quotes",
+                "uiux_evidence_quotes",
+                "resume_text",
+            },
+        )
+        for cand in self.candidates.values():
+            if cand.primary_classification in ("lca_consultant", "uiux_intern"):
+                role_eval = cand.evaluations[cand.primary_classification]
+                self.assertIn(role_eval.match_tier, ("strong_match", "potential_match"))
+                self.assertLess(role_eval.overall_score, 100.0)
 
 
 def test_all_benchmark_assertions():
